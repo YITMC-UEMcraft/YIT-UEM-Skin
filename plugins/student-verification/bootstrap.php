@@ -73,4 +73,14 @@ return function (Plugin $plugin): void {
             'icon' => 'graduation-cap',
         ]
     );
+
+    // 为 Twig 模板提供验证状态查询函数
+    Hook::addFilter('twig_globals', function ($globals) {
+        $globals['verification_status'] = function () {
+            $user = auth()->user();
+            if (!$user) return null;
+            return \StudentVerification\Models\StudentVerification::forUser($user->uid);
+        };
+        return $globals;
+    });
 };
