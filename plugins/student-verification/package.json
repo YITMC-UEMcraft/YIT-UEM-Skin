@@ -1,0 +1,21 @@
+{
+    "name": "student-verification",
+    "version": "1.0.0",
+    "title": "学生身份验证",
+    "description": "联合皮肤站学生身份验证插件 — 支持燕京理工学院教务系统和应急管理大学统一认证",
+    "namespace": "StudentVerification",
+    "require": {
+        "blessing-skin-server": "^6.0",
+        "php": "^8.1"
+    },
+    "enchants": {
+        "icon": {
+            "fa": "graduation-cap",
+            "faType": "fas",
+            "bg": "indigo"
+        },
+        "providers": [
+            "ServiceProvider"
+        ]
+    }
+}
