@@ -68,7 +68,7 @@ return function (Plugin $plugin): void {
     Hook::addUserMenu(
         'student-verification',
         [
-            'title' => trans('StudentVerification::student-verification.title'),
+            'title' => 'StudentVerification::student-verification.menu_title',
             'link' => 'student-verification',
             'icon' => 'graduation-cap',
         ]
