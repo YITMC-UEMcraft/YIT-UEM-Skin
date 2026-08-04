@@ -13,6 +13,19 @@
         </h3>
       </div>
       <div class="card-body">
+        {% if verifySuccess %}
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle mr-1"></i>
+            {{ verifySuccess }}
+          </div>
+        {% endif %}
+        {% if verifyError %}
+          <div class="alert alert-danger">
+            <i class="fas fa-times-circle mr-1"></i>
+            {{ verifyError }}
+          </div>
+        {% endif %}
+
         {% if verified %}
           <div class="alert alert-success">
             <i class="fas fa-check-circle mr-1"></i>
@@ -73,6 +86,15 @@
                      required autocomplete="off">
             </div>
 
+            <div id="uem-name-group" class="form-group d-none">
+              <label for="student-name-input">
+                {{ trans('StudentVerification::student-verification.student_name') }}
+              </label>
+              <input type="text" class="form-control" id="student-name-input" name="student_name"
+                     placeholder="{{ trans('StudentVerification::student-verification.student_name_placeholder') }}"
+                     autocomplete="off">
+            </div>
+
             <div class="form-group">
               <label for="password-input">
                 {{ trans('StudentVerification::student-verification.password_label') }}
@@ -84,6 +106,22 @@
                 <i class="fas fa-shield-alt mr-1"></i>
                 {{ trans('StudentVerification::student-verification.password_notice') }}
               </small>
+            </div>
+
+            <div id="uem-cas-box" class="d-none">
+              <div class="alert alert-info py-2" style="font-size: .875rem">
+                <i class="fas fa-external-link-alt mr-1"></i>
+                {{ trans('StudentVerification::student-verification.uem_cas_tip') }}
+              </div>
+              <button type="button" class="btn btn-primary btn-block" id="uem-cas-btn">
+                <i class="fas fa-university mr-1"></i>
+                {{ trans('StudentVerification::student-verification.uem_cas_btn') }}
+              </button>
+              <div class="text-center mt-2">
+                <a href="javascript:void(0)" id="uem-fallback-link" class="text-muted" style="font-size: .8rem">
+                  {{ trans('StudentVerification::student-verification.uem_fallback') }}
+                </a>
+              </div>
             </div>
 
             <button type="submit" class="btn btn-primary" id="verify-btn">
@@ -132,62 +170,94 @@
   };
 
   var schoolSelect = document.getElementById('school-select');
-  if (schoolSelect) {
-    schoolSelect.addEventListener('change', function () {
-      var hint = document.getElementById('school-hint');
-      hint.textContent = hints[schoolSelect.value] || '';
-    });
-
-    var form = document.getElementById('verify-form');
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-
-      var btn = document.getElementById('verify-btn');
-      var result = document.getElementById('verify-result');
-      result.innerHTML = '';
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span>' +
-        '{{ trans("StudentVerification::student-verification.verifying") }}';
-
-      var payload = {
-        school: schoolSelect.value,
-        student_id: document.getElementById('student-id-input').value,
-        password: document.getElementById('password-input').value
-      };
-
-      fetch('{{ url("student-verification/verify") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      })
-        .then(function (resp) { return resp.json().catch(function () { return null; }); })
-        .then(function (data) {
-          if (data && data.success) {
-            result.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i>' +
-              (data.message || '{{ trans("StudentVerification::student-verification.verify_success") }}') + '</div>';
-            setTimeout(function () { window.location.reload(); }, 1500);
-          } else {
-            var message = data && data.message
-              ? data.message
-              : '{{ trans("StudentVerification::student-verification.verify_failed") }}';
-            result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-              message + '</div>';
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
-          }
-        })
-        .catch(function () {
-          result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-            '{{ trans("StudentVerification::student-verification.network_error") }}</div>';
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
-        });
-    });
+  if (!schoolSelect) {
+    return;
   }
+
+  var nameGroup = document.getElementById('uem-name-group');
+  var casBox = document.getElementById('uem-cas-box');
+  var passwordGroup = document.getElementById('password-input').parentElement;
+  var submitBtn = document.getElementById('verify-btn');
+  var hint = document.getElementById('school-hint');
+  var result = document.getElementById('verify-result');
+
+  function renderSchool() {
+    var school = schoolSelect.value;
+    hint.textContent = hints[school] || '';
+    var isUem = school === 'uem';
+    nameGroup.classList.toggle('d-none', !isUem);
+    casBox.classList.toggle('d-none', !isUem);
+    passwordGroup.classList.toggle('d-none', isUem);
+    submitBtn.classList.toggle('d-none', isUem);
+    result.innerHTML = '';
+  }
+
+  schoolSelect.addEventListener('change', renderSchool);
+
+  document.getElementById('uem-cas-btn').addEventListener('click', function () {
+    var sid = document.getElementById('student-id-input').value.trim();
+    var name = document.getElementById('student-name-input').value.trim();
+    if (!sid || !name) {
+      result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
+        '{{ trans("StudentVerification::student-verification.uem_need_both") }}</div>';
+      return;
+    }
+    window.location.href = '{{ url("student-verification/uem/login") }}?student_id=' +
+      encodeURIComponent(sid) + '&student_name=' + encodeURIComponent(name);
+  });
+
+  document.getElementById('uem-fallback-link').addEventListener('click', function () {
+    casBox.classList.add('d-none');
+    passwordGroup.classList.remove('d-none');
+    submitBtn.classList.remove('d-none');
+  });
+
+  document.getElementById('verify-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span>' +
+      '{{ trans("StudentVerification::student-verification.verifying") }}';
+    result.innerHTML = '';
+
+    var payload = {
+      school: schoolSelect.value,
+      student_id: document.getElementById('student-id-input').value,
+      password: document.getElementById('password-input').value
+    };
+
+    fetch('{{ url("student-verification/verify") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function (resp) { return resp.json().catch(function () { return null; }); })
+      .then(function (data) {
+        if (data && data.success) {
+          result.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i>' +
+            (data.message || '{{ trans("StudentVerification::student-verification.verify_success") }}') + '</div>';
+          setTimeout(function () { window.location.reload(); }, 1500);
+        } else {
+          var message = data && data.message
+            ? data.message
+            : '{{ trans("StudentVerification::student-verification.verify_failed") }}';
+          result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
+            message + '</div>';
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
+        }
+      })
+      .catch(function () {
+        result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
+          '{{ trans("StudentVerification::student-verification.network_error") }}</div>';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
+      });
+  });
 })();
 </script>
 {% endblock %}

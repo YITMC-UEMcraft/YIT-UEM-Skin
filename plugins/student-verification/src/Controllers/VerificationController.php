@@ -5,6 +5,7 @@ namespace StudentVerification\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
 use StudentVerification\Models\StudentVerification;
 use StudentVerification\Services\YitAuthService;
 use StudentVerification\Services\UemAuthService;
@@ -37,11 +38,13 @@ class VerificationController extends Controller
             'studentName' => $verification ? $verification->student_name : null,
             'studentId' => $verification ? $verification->student_id : null,
             'school' => $verification ? $verification->school : null,
+            'verifyError' => session('verify_error'),
+            'verifySuccess' => session('verify_success'),
         ]);
     }
 
     /**
-     * 处理验证请求（AJAX）
+     * 处理验证请求（AJAX，服务端代理登录）
      */
     public function verify(Request $request): JsonResponse
     {
@@ -90,6 +93,95 @@ class VerificationController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * UEM：跳转到学校统一认证（CAS）登录页
+     *
+     * 用户在自己的浏览器里完成登录（可复用已登录会话，秒过），
+     * 学校回跳 callback 后由我们校验票据，全程不经过本站服务器代理密码。
+     */
+    public function uemLogin(Request $request)
+    {
+        $studentId = trim($request->query('student_id', ''));
+        $studentName = trim($request->query('student_name', ''));
+
+        if ($studentId === '' || $studentName === '') {
+            return redirect()->route('student-verification.page');
+        }
+
+        // 把用户声称的学号/姓名暂存，回调时与 CAS 返回的学号交叉核对
+        session(['uem_pending' => [
+            'student_id' => $studentId,
+            'student_name' => $studentName,
+        ]]);
+
+        $service = route('student-verification.uem-callback', [], true);
+
+        return redirect()->away(
+            'https://auth.ncist.edu.cn/authserver/login?service=' . urlencode($service)
+        );
+    }
+
+    /**
+     * UEM：CAS 回调，校验票据并完成验证
+     */
+    public function uemCallback(Request $request)
+    {
+        $ticket = trim($request->query('ticket', ''));
+        $pending = session()->pull('uem_pending', []);
+
+        if ($ticket === '' || empty($pending['student_id'])) {
+            return redirect()->route('student-verification.page')
+                ->with('verify_error', '验证未完成，请重新点击「前往学校统一认证」');
+        }
+
+        $service = route('student-verification.uem-callback', [], true);
+
+        try {
+            $response = Http::timeout(20)->get(
+                'https://auth.ncist.edu.cn/authserver/serviceValidate',
+                [
+                    'service' => $service,
+                    'ticket' => $ticket,
+                ]
+            );
+        } catch (\Exception $e) {
+            return redirect()->route('student-verification.page')
+                ->with('verify_error', '无法连接学校认证系统，请稍后重试');
+        }
+
+        $xml = $response->body();
+        if (!preg_match('/<cas:user>([^<]+)<\/cas:user>/', $xml, $matches)) {
+            return redirect()->route('student-verification.page')
+                ->with('verify_error', '统一认证验证失败，请重试');
+        }
+
+        $casUsername = trim($matches[1]);
+        if (strcasecmp($casUsername, $pending['student_id']) !== 0) {
+            return redirect()->route('student-verification.page')
+                ->with('verify_error', '统一认证账号与填写的学号不一致，请检查后重试');
+        }
+
+        // 若学校 CAS 配置了属性释放，优先使用返回的真实姓名
+        $studentName = $pending['student_name'];
+        if (preg_match('/<cas:attribute\s+name="(?:displayName|realName|姓名|xm)"[^>]*>([^<]+)<\/cas:attribute>/', $xml, $nameMatches)) {
+            $studentName = trim($nameMatches[1]);
+        }
+
+        StudentVerification::updateOrCreate(
+            ['user_id' => auth()->user()->uid],
+            [
+                'school' => 'uem',
+                'student_id' => $pending['student_id'],
+                'student_name' => $studentName,
+                'verified' => true,
+                'verified_at' => now(),
+            ]
+        );
+
+        return redirect()->route('student-verification.page')
+            ->with('verify_success', '验证通过！欢迎，' . $studentName);
     }
 
     /**

@@ -21,6 +21,10 @@ return function (Plugin $plugin): void {
                 ->name('student-verification.verify');
             $router->get('student-verification/status', 'StudentVerification\Controllers\VerificationController@status')
                 ->name('student-verification.status');
+            $router->get('student-verification/uem/login', 'StudentVerification\Controllers\VerificationController@uemLogin')
+                ->name('student-verification.uem-login');
+            $router->get('student-verification/uem/callback', 'StudentVerification\Controllers\VerificationController@uemCallback')
+                ->name('student-verification.uem-callback');
         });
     });
 

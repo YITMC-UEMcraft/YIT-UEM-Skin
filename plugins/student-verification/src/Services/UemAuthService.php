@@ -117,7 +117,6 @@ class UemAuthService extends BaseAuthService
             '图形验证码错误' => '图形验证码错误，请稍后再试',
             '图形动态码错误' => '该账号需要图形验证码，请稍后再试或使用浏览器登录',
             '动态码错误' => '动态验证码错误，请稍后再试',
-            '验证码' => '该账号需要图形验证码，请稍后再试或使用浏览器登录',
         ];
 
         foreach ($patterns as $needle => $message) {
