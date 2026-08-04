@@ -1,10 +1,13 @@
 <?php
 
-use App\Models\Plugin;
+use App\Events\PluginWasDeleted;
+use App\Events\PluginWasDisabled;
+use App\Events\PluginWasEnabled;
 use Illuminate\Support\Facades\Schema;
 
 return [
-    'enable' => function (Plugin $plugin) {
+    PluginWasEnabled::class => function () {
+        // 确保数据库表存在
         if (!Schema::hasTable('student_verifications')) {
             Schema::create('student_verifications', function ($table) {
                 $table->bigIncrements('id');
@@ -19,11 +22,12 @@ return [
         }
     },
 
-    'disable' => function (Plugin $plugin) {
+    PluginWasDisabled::class => function () {
         // 保留数据库表（不删除用户验证数据）
     },
 
-    'delete' => function (Plugin $plugin) {
+    PluginWasDeleted::class => function () {
+        // 清理数据库表
         Schema::dropIfExists('student_verifications');
     },
 ];

@@ -12,6 +12,7 @@ use StudentVerification\Services\UemAuthService;
 class VerificationController extends Controller
 {
     private YitAuthService $yitAuth;
+
     private UemAuthService $uemAuth;
 
     public function __construct(YitAuthService $yitAuth, UemAuthService $uemAuth)
@@ -19,6 +20,8 @@ class VerificationController extends Controller
         $this->yitAuth = $yitAuth;
         $this->uemAuth = $uemAuth;
         $this->middleware('auth');
+        // 防止对学校认证系统进行暴力尝试
+        $this->middleware('throttle:5,1')->only('verify');
     }
 
     /**
@@ -50,7 +53,7 @@ class VerificationController extends Controller
 
         $user = auth()->user();
 
-        // 检查是否已验证
+        // 已通过验证的用户无需重复验证（每人只能绑定一个学校，不可更改）
         $existing = StudentVerification::forUser($user->uid);
         if ($existing && $existing->verified) {
             return response()->json([
@@ -61,13 +64,13 @@ class VerificationController extends Controller
         }
 
         $school = $request->input('school');
-        $studentId = $request->input('student_id');
+        $studentId = trim($request->input('student_id'));
         $password = $request->input('password');
 
         // 选择认证服务
         $authService = $school === 'yit' ? $this->yitAuth : $this->uemAuth;
 
-        // 执行认证
+        // 执行认证（密码仅在该请求内使用）
         $result = $authService->verify($studentId, $password);
 
         if ($result['success']) {
@@ -82,6 +85,8 @@ class VerificationController extends Controller
                     'verified_at' => now(),
                 ]
             );
+
+            $result['message'] = '验证通过！欢迎，' . $result['student_name'];
         }
 
         return response()->json($result);
@@ -96,10 +101,11 @@ class VerificationController extends Controller
         $verification = StudentVerification::forUser($user->uid);
 
         return response()->json([
-            'verified' => $verification ? $verification->verified : false,
+            'verified' => $verification ? (bool) $verification->verified : false,
             'student_name' => $verification ? $verification->student_name : null,
             'student_id' => $verification ? $verification->student_id : null,
             'school' => $verification ? $verification->school : null,
+            'verified_at' => $verification ? optional($verification->verified_at)->toDateTimeString() : null,
         ]);
     }
 }
