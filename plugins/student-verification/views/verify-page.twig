@@ -13,19 +13,6 @@
         </h3>
       </div>
       <div class="card-body">
-        {% if verifySuccess %}
-          <div class="alert alert-success">
-            <i class="fas fa-check-circle mr-1"></i>
-            {{ verifySuccess }}
-          </div>
-        {% endif %}
-        {% if verifyError %}
-          <div class="alert alert-danger">
-            <i class="fas fa-times-circle mr-1"></i>
-            {{ verifyError }}
-          </div>
-        {% endif %}
-
         {% if verified %}
           <div class="alert alert-success">
             <i class="fas fa-check-circle mr-1"></i>
@@ -95,7 +82,7 @@
                      autocomplete="off">
             </div>
 
-            <div class="form-group">
+            <div id="yit-password-group" class="form-group">
               <label for="password-input">
                 {{ trans('StudentVerification::student-verification.password_label') }}
               </label>
@@ -108,57 +95,20 @@
               </small>
             </div>
 
-            <div id="uem-method-box" class="d-none">
-              <div class="form-group">
-                <label>{{ trans('StudentVerification::student-verification.uem_method') }}</label>
-                <div class="d-flex flex-wrap">
-                  <button type="button" class="btn btn-sm btn-primary mr-2 mb-1 uem-method" data-method="qr">
-                    <i class="fas fa-qrcode mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_qr') }}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-primary mr-2 mb-1 uem-method" data-method="cas">
-                    <i class="fas fa-university mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_cas') }}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-primary mr-2 mb-1 uem-method" data-method="pw">
-                    <i class="fas fa-key mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_pw') }}
-                  </button>
-                </div>
+            <div id="uem-qr-box" class="d-none">
+              <div class="alert alert-info py-2" style="font-size: .875rem">
+                <i class="fas fa-mobile-alt mr-1"></i>
+                {{ trans('StudentVerification::student-verification.uem_qr_tip') }}
               </div>
-
-              <div id="uem-panel-qr" class="d-none">
-                <div class="alert alert-info py-2" style="font-size: .875rem">
-                  <i class="fas fa-mobile-alt mr-1"></i>
-                  {{ trans('StudentVerification::student-verification.uem_qr_tip') }}
+              <div class="text-center mb-2">
+                <div id="uem-qr-wrap" class="d-none d-inline-block p-2 border rounded" style="background:#fff">
+                  <img id="uem-qr-img" alt="二维码" style="width:180px;height:180px">
                 </div>
-                <div class="text-center mb-2">
-                  <div id="uem-qr-wrap" class="d-none d-inline-block p-2 border rounded" style="background:#fff">
-                    <img id="uem-qr-img" alt="二维码" style="width:180px;height:180px">
-                  </div>
-                  <div id="uem-qr-status" class="mt-2"></div>
-                </div>
-                <button type="button" class="btn btn-primary btn-block" id="uem-qr-btn">
-                  <i class="fas fa-qrcode mr-1"></i>{{ trans('StudentVerification::student-verification.uem_qr_btn') }}
-                </button>
+                <div id="uem-qr-status" class="mt-2"></div>
               </div>
-
-              <div id="uem-panel-cas" class="d-none">
-                <div class="alert alert-info py-2" style="font-size: .875rem">
-                  <i class="fas fa-external-link-alt mr-1"></i>
-                  {{ trans('StudentVerification::student-verification.uem_cas_tip') }}
-                </div>
-                <button type="button" class="btn btn-primary btn-block" id="uem-cas-btn">
-                  <i class="fas fa-university mr-1"></i>{{ trans('StudentVerification::student-verification.uem_cas_btn') }}
-                </button>
-              </div>
-
-              <div id="uem-panel-pw" class="d-none">
-                <div class="alert alert-secondary py-2" style="font-size: .875rem">
-                  <i class="fas fa-info-circle mr-1"></i>
-                  {{ trans('StudentVerification::student-verification.uem_pw_tip') }}
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">
-                  <i class="fas fa-check mr-1"></i>{{ trans('StudentVerification::student-verification.verify_btn') }}
-                </button>
-              </div>
+              <button type="button" class="btn btn-primary btn-block" id="uem-qr-btn">
+                <i class="fas fa-qrcode mr-1"></i>{{ trans('StudentVerification::student-verification.uem_qr_btn') }}
+              </button>
             </div>
 
             <button type="submit" class="btn btn-primary" id="verify-btn">
@@ -211,52 +161,12 @@
   }
 
   var nameGroup = document.getElementById('uem-name-group');
-  var methodBox = document.getElementById('uem-method-box');
-  var passwordGroup = document.getElementById('password-input').parentElement;
+  var qrBox = document.getElementById('uem-qr-box');
+  var yitPasswordGroup = document.getElementById('yit-password-group');
   var submitBtn = document.getElementById('verify-btn');
   var hint = document.getElementById('school-hint');
   var result = document.getElementById('verify-result');
-  var currentMethod = 'qr';
   var qrTimer = null;
-
-  function showMethod(method) {
-    currentMethod = method;
-    document.querySelectorAll('.uem-method').forEach(function (btn) {
-      var active = btn.getAttribute('data-method') === method;
-      btn.classList.toggle('btn-primary', active);
-      btn.classList.toggle('btn-outline-primary', !active);
-    });
-    document.getElementById('uem-panel-qr').classList.toggle('d-none', method !== 'qr');
-    document.getElementById('uem-panel-cas').classList.toggle('d-none', method !== 'cas');
-    document.getElementById('uem-panel-pw').classList.toggle('d-none', method !== 'pw');
-  }
-
-  function renderSchool() {
-    var school = schoolSelect.value;
-    hint.textContent = hints[school] || '';
-    var isUem = school === 'uem';
-    nameGroup.classList.toggle('d-none', !isUem);
-    methodBox.classList.toggle('d-none', !isUem);
-    passwordGroup.classList.toggle('d-none', isUem);
-    submitBtn.classList.toggle('d-none', isUem);
-    result.innerHTML = '';
-    stopQrPolling();
-    if (isUem) {
-      showMethod('qr');
-    }
-  }
-
-  schoolSelect.addEventListener('change', renderSchool);
-  document.querySelectorAll('.uem-method').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      showMethod(btn.getAttribute('data-method'));
-    });
-  });
-
-  // ---- QR flow ----
-  function csrf() {
-    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-  }
 
   function stopQrPolling() {
     if (qrTimer) {
@@ -265,6 +175,25 @@
     }
   }
 
+  function renderSchool() {
+    var school = schoolSelect.value;
+    hint.textContent = hints[school] || '';
+    var isUem = school === 'uem';
+    nameGroup.classList.toggle('d-none', !isUem);
+    qrBox.classList.toggle('d-none', !isUem);
+    yitPasswordGroup.classList.toggle('d-none', isUem);
+    submitBtn.classList.toggle('d-none', isUem);
+    result.innerHTML = '';
+    stopQrPolling();
+  }
+
+  schoolSelect.addEventListener('change', renderSchool);
+
+  function csrf() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  }
+
+  // ---- UEM QR flow ----
   document.getElementById('uem-qr-btn').addEventListener('click', function () {
     var sid = document.getElementById('student-id-input').value.trim();
     var name = document.getElementById('student-name-input').value.trim();
@@ -338,20 +267,7 @@
       .catch(function () { /* keep polling */ });
   }
 
-  // ---- CAS flow ----
-  document.getElementById('uem-cas-btn').addEventListener('click', function () {
-    var sid = document.getElementById('student-id-input').value.trim();
-    var name = document.getElementById('student-name-input').value.trim();
-    if (!sid || !name) {
-      result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-        '{{ trans("StudentVerification::student-verification.uem_need_both") }}</div>';
-      return;
-    }
-    window.location.href = '{{ url("student-verification/uem/login") }}?student_id=' +
-      encodeURIComponent(sid) + '&student_name=' + encodeURIComponent(name);
-  });
-
-  // ---- password flow ----
+  // ---- YIT password flow ----
   document.getElementById('verify-form').addEventListener('submit', function (e) {
     e.preventDefault();
 
