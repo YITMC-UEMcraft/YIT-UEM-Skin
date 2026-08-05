@@ -10,6 +10,7 @@ use StudentVerification\Models\StudentVerification;
 use StudentVerification\Services\YitAuthService;
 use StudentVerification\Services\UemAuthService;
 use StudentVerification\Services\UemJwAuthService;
+use StudentVerification\Services\UemQrService;
 
 class VerificationController extends Controller
 {
@@ -19,11 +20,14 @@ class VerificationController extends Controller
 
     private UemJwAuthService $uemJwAuth;
 
-    public function __construct(YitAuthService $yitAuth, UemAuthService $uemAuth, UemJwAuthService $uemJwAuth)
+    private UemQrService $uemQr;
+
+    public function __construct(YitAuthService $yitAuth, UemAuthService $uemAuth, UemJwAuthService $uemJwAuth, UemQrService $uemQr)
     {
         $this->yitAuth = $yitAuth;
         $this->uemAuth = $uemAuth;
         $this->uemJwAuth = $uemJwAuth;
+        $this->uemQr = $uemQr;
         $this->middleware('auth');
         // 防止对学校认证系统进行暴力尝试
         $this->middleware('throttle:5,1')->only('verify');
@@ -188,6 +192,144 @@ class VerificationController extends Controller
             ->with('verify_success', '验证通过！欢迎，' . $studentName);
     }
 
+
+    /**
+     * UEM：创建扫码验证会话，返回二维码图片地址。
+     */
+    public function uemQrCreate(Request $request): JsonResponse
+    {
+        $studentId = trim($request->input('student_id', ''));
+        $studentName = trim($request->input('student_name', ''));
+
+        if ($studentId === '' || $studentName === '') {
+            return response()->json(['success' => false, 'message' => '请先填写学号和姓名']);
+        }
+
+        $jarDir = storage_path('framework/uem-qr');
+        if (!is_dir($jarDir)) {
+            @mkdir($jarDir, 0775, true);
+        }
+        $jar = $jarDir . '/qr_' . bin2hex(random_bytes(8)) . '.txt';
+
+        try {
+            $result = $this->uemQr->create($jar);
+        } catch (\Exception $e) {
+            @unlink($jar);
+
+            return response()->json(['success' => false, 'message' => '无法连接学校认证系统，请稍后重试']);
+        }
+
+        if (!$result['success']) {
+            @unlink($jar);
+
+            return response()->json(['success' => false, 'message' => '二维码创建失败，请稍后重试']);
+        }
+
+        session(['uem_qr' => [
+            'jar' => $jar,
+            'uuid' => $result['uuid'],
+            'student_id' => $studentId,
+            'student_name' => $studentName,
+        ]]);
+
+        return response()->json([
+            'success' => true,
+            'uuid' => $result['uuid'],
+            'image' => $result['image'],
+        ]);
+    }
+
+    /**
+     * UEM：轮询扫码状态；确认后完成登录并核验身份。
+     */
+    public function uemQrStatus(Request $request): JsonResponse
+    {
+        $qr = session('uem_qr', []);
+        if (empty($qr['jar']) || empty($qr['uuid'])) {
+            return response()->json(['status' => 'expired', 'message' => '二维码会话已失效，请重新生成']);
+        }
+
+        $jar = $qr['jar'];
+        $uuid = $qr['uuid'];
+
+        if (!is_file($jar)) {
+            session()->forget('uem_qr');
+
+            return response()->json(['status' => 'expired', 'message' => '二维码会话已失效，请重新生成']);
+        }
+
+        try {
+            $status = $this->uemQr->status($jar, $uuid);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'pending', 'message' => '网络异常，正在重试…']);
+        }
+
+        // 2 = 已扫描待确认
+        if ($status === '2') {
+            return response()->json(['status' => 'scanned', 'message' => '已扫描，请在手机上确认登录']);
+        }
+
+        // 3 = 失效
+        if ($status === '3') {
+            @unlink($jar);
+            session()->forget('uem_qr');
+
+            return response()->json(['status' => 'expired', 'message' => '二维码已失效，请刷新重试']);
+        }
+
+        // 0 = 未扫描
+        if ($status !== '1') {
+            return response()->json(['status' => 'pending', 'message' => '等待扫码…']);
+        }
+
+        // 1 = 已在手机上确认，完成登录
+        $completed = false;
+        try {
+            $completed = $this->uemQr->complete($jar, $uuid);
+            $identity = $completed ? $this->uemQr->fetchIdentity($jar) : ['student_id' => '', 'student_name' => ''];
+        } catch (\Exception $e) {
+            $identity = ['student_id' => '', 'student_name' => ''];
+        }
+
+        $pendingId = $qr['student_id'];
+        $pendingName = $qr['student_name'];
+
+        if (!$completed) {
+            @unlink($jar);
+            session()->forget('uem_qr');
+
+            return response()->json(['status' => 'error', 'message' => '登录未完成，请重新扫码']);
+        }
+
+        // 若能解析出会话账号，必须与填写的学号一致
+        if ($identity['student_id'] !== '' && strcasecmp($identity['student_id'], $pendingId) !== 0) {
+            @unlink($jar);
+            session()->forget('uem_qr');
+
+            return response()->json(['status' => 'error', 'message' => '扫码登录的账号与填写的学号不一致']);
+        }
+
+        $studentName = $identity['student_name'] !== '' ? $identity['student_name'] : $pendingName;
+
+        StudentVerification::updateOrCreate(
+            ['user_id' => auth()->user()->uid],
+            [
+                'school' => 'uem',
+                'student_id' => $pendingId,
+                'student_name' => $studentName,
+                'verified' => true,
+                'verified_at' => now(),
+            ]
+        );
+
+        @unlink($jar);
+        session()->forget('uem_qr');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => '验证通过！欢迎，' . $studentName,
+        ]);
+    }
     /**
      * 检查验证状态（AJAX）
      */

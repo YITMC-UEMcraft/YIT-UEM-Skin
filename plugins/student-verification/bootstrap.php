@@ -25,6 +25,10 @@ return function (Plugin $plugin): void {
                 ->name('student-verification.uem-login');
             $router->get('student-verification/uem/callback', 'StudentVerification\Controllers\VerificationController@uemCallback')
                 ->name('student-verification.uem-callback');
+            $router->post('student-verification/uem/qr/create', 'StudentVerification\Controllers\VerificationController@uemQrCreate')
+                ->name('student-verification.uem-qr-create');
+            $router->get('student-verification/uem/qr/status', 'StudentVerification\Controllers\VerificationController@uemQrStatus')
+                ->name('student-verification.uem-qr-status');
         });
     });
 

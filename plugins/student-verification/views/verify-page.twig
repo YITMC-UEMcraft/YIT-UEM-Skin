@@ -108,25 +108,61 @@
               </small>
             </div>
 
-            <div id="uem-cas-box" class="d-none">
-              <div class="alert alert-info py-2" style="font-size: .875rem">
-                <i class="fas fa-external-link-alt mr-1"></i>
-                {{ trans('StudentVerification::student-verification.uem_cas_tip') }}
+            <div id="uem-method-box" class="d-none">
+              <div class="form-group">
+                <label>{{ trans('StudentVerification::student-verification.uem_method') }}</label>
+                <div class="d-flex flex-wrap">
+                  <button type="button" class="btn btn-sm btn-primary mr-2 mb-1 uem-method" data-method="qr">
+                    <i class="fas fa-qrcode mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_qr') }}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary mr-2 mb-1 uem-method" data-method="cas">
+                    <i class="fas fa-university mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_cas') }}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary mr-2 mb-1 uem-method" data-method="pw">
+                    <i class="fas fa-key mr-1"></i>{{ trans('StudentVerification::student-verification.uem_method_pw') }}
+                  </button>
+                </div>
               </div>
-              <button type="button" class="btn btn-primary btn-block" id="uem-cas-btn">
-                <i class="fas fa-university mr-1"></i>
-                {{ trans('StudentVerification::student-verification.uem_cas_btn') }}
-              </button>
-              <div class="text-center mt-2">
-                <a href="javascript:void(0)" id="uem-fallback-link" class="text-muted" style="font-size: .8rem">
-                  {{ trans('StudentVerification::student-verification.uem_fallback') }}
-                </a>
+
+              <div id="uem-panel-qr" class="d-none">
+                <div class="alert alert-info py-2" style="font-size: .875rem">
+                  <i class="fas fa-mobile-alt mr-1"></i>
+                  {{ trans('StudentVerification::student-verification.uem_qr_tip') }}
+                </div>
+                <div class="text-center mb-2">
+                  <div id="uem-qr-wrap" class="d-none d-inline-block p-2 border rounded" style="background:#fff">
+                    <img id="uem-qr-img" alt="二维码" style="width:180px;height:180px">
+                  </div>
+                  <div id="uem-qr-status" class="mt-2"></div>
+                </div>
+                <button type="button" class="btn btn-primary btn-block" id="uem-qr-btn">
+                  <i class="fas fa-qrcode mr-1"></i>{{ trans('StudentVerification::student-verification.uem_qr_btn') }}
+                </button>
+              </div>
+
+              <div id="uem-panel-cas" class="d-none">
+                <div class="alert alert-info py-2" style="font-size: .875rem">
+                  <i class="fas fa-external-link-alt mr-1"></i>
+                  {{ trans('StudentVerification::student-verification.uem_cas_tip') }}
+                </div>
+                <button type="button" class="btn btn-primary btn-block" id="uem-cas-btn">
+                  <i class="fas fa-university mr-1"></i>{{ trans('StudentVerification::student-verification.uem_cas_btn') }}
+                </button>
+              </div>
+
+              <div id="uem-panel-pw" class="d-none">
+                <div class="alert alert-secondary py-2" style="font-size: .875rem">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  {{ trans('StudentVerification::student-verification.uem_pw_tip') }}
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                  <i class="fas fa-check mr-1"></i>{{ trans('StudentVerification::student-verification.verify_btn') }}
+                </button>
               </div>
             </div>
 
             <button type="submit" class="btn btn-primary" id="verify-btn">
-              <i class="fas fa-check mr-1"></i>
-              {{ trans('StudentVerification::student-verification.verify_btn') }}
+              <i class="fas fa-check mr-1"></i>{{ trans('StudentVerification::student-verification.verify_btn') }}
             </button>
           </form>
 
@@ -175,25 +211,134 @@
   }
 
   var nameGroup = document.getElementById('uem-name-group');
-  var casBox = document.getElementById('uem-cas-box');
+  var methodBox = document.getElementById('uem-method-box');
   var passwordGroup = document.getElementById('password-input').parentElement;
   var submitBtn = document.getElementById('verify-btn');
   var hint = document.getElementById('school-hint');
   var result = document.getElementById('verify-result');
+  var currentMethod = 'qr';
+  var qrTimer = null;
+
+  function showMethod(method) {
+    currentMethod = method;
+    document.querySelectorAll('.uem-method').forEach(function (btn) {
+      var active = btn.getAttribute('data-method') === method;
+      btn.classList.toggle('btn-primary', active);
+      btn.classList.toggle('btn-outline-primary', !active);
+    });
+    document.getElementById('uem-panel-qr').classList.toggle('d-none', method !== 'qr');
+    document.getElementById('uem-panel-cas').classList.toggle('d-none', method !== 'cas');
+    document.getElementById('uem-panel-pw').classList.toggle('d-none', method !== 'pw');
+  }
 
   function renderSchool() {
     var school = schoolSelect.value;
     hint.textContent = hints[school] || '';
     var isUem = school === 'uem';
     nameGroup.classList.toggle('d-none', !isUem);
-    casBox.classList.toggle('d-none', !isUem);
+    methodBox.classList.toggle('d-none', !isUem);
     passwordGroup.classList.toggle('d-none', isUem);
     submitBtn.classList.toggle('d-none', isUem);
     result.innerHTML = '';
+    stopQrPolling();
+    if (isUem) {
+      showMethod('qr');
+    }
   }
 
   schoolSelect.addEventListener('change', renderSchool);
+  document.querySelectorAll('.uem-method').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      showMethod(btn.getAttribute('data-method'));
+    });
+  });
 
+  // ---- QR flow ----
+  function csrf() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  }
+
+  function stopQrPolling() {
+    if (qrTimer) {
+      clearInterval(qrTimer);
+      qrTimer = null;
+    }
+  }
+
+  document.getElementById('uem-qr-btn').addEventListener('click', function () {
+    var sid = document.getElementById('student-id-input').value.trim();
+    var name = document.getElementById('student-name-input').value.trim();
+    if (!sid || !name) {
+      result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
+        '{{ trans("StudentVerification::student-verification.uem_need_both") }}</div>';
+      return;
+    }
+
+    var btn = document.getElementById('uem-qr-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span>{{ trans("StudentVerification::student-verification.verifying") }}';
+
+    fetch('{{ url("student-verification/uem/qr/create") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrf(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({student_id: sid, student_name: name})
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) {
+          result.innerHTML = '<div class="alert alert-danger mb-0">' + (data.message || '二维码创建失败') + '</div>';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-qrcode mr-1"></i>{{ trans("StudentVerification::student-verification.uem_qr_btn") }}';
+          return;
+        }
+        document.getElementById('uem-qr-img').src = data.image;
+        document.getElementById('uem-qr-wrap').classList.remove('d-none');
+        document.getElementById('uem-qr-status').innerHTML =
+          '<div class="text-muted">{{ trans("StudentVerification::student-verification.uem_qr_waiting") }}</div>';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>{{ trans("StudentVerification::student-verification.uem_qr_refresh") }}';
+        stopQrPolling();
+        qrTimer = setInterval(function () { pollQr(); }, 2000);
+      })
+      .catch(function () {
+        result.innerHTML = '<div class="alert alert-danger mb-0">{{ trans("StudentVerification::student-verification.network_error") }}</div>';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-qrcode mr-1"></i>{{ trans("StudentVerification::student-verification.uem_qr_btn") }}';
+      });
+  });
+
+  function pollQr() {
+    fetch('{{ url("student-verification/uem/qr/status") }}', {
+      headers: {'Accept': 'application/json'}
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var statusEl = document.getElementById('uem-qr-status');
+        if (data.status === 'pending') {
+          statusEl.innerHTML = '<div class="text-muted">{{ trans("StudentVerification::student-verification.uem_qr_waiting") }}</div>';
+        } else if (data.status === 'scanned') {
+          statusEl.innerHTML = '<div class="text-info"><i class="fas fa-mobile-alt mr-1"></i>' + (data.message || '') + '</div>';
+        } else if (data.status === 'success') {
+          stopQrPolling();
+          statusEl.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</div>';
+          setTimeout(function () { window.location.reload(); }, 1500);
+        } else if (data.status === 'expired') {
+          stopQrPolling();
+          statusEl.innerHTML = '<div class="text-danger">' + data.message + '</div>';
+          document.getElementById('uem-qr-wrap').classList.add('d-none');
+        } else {
+          stopQrPolling();
+          statusEl.innerHTML = '<div class="alert alert-danger mb-0">' + (data.message || '') + '</div>';
+        }
+      })
+      .catch(function () { /* keep polling */ });
+  }
+
+  // ---- CAS flow ----
   document.getElementById('uem-cas-btn').addEventListener('click', function () {
     var sid = document.getElementById('student-id-input').value.trim();
     var name = document.getElementById('student-name-input').value.trim();
@@ -206,12 +351,7 @@
       encodeURIComponent(sid) + '&student_name=' + encodeURIComponent(name);
   });
 
-  document.getElementById('uem-fallback-link').addEventListener('click', function () {
-    casBox.classList.add('d-none');
-    passwordGroup.classList.remove('d-none');
-    submitBtn.classList.remove('d-none');
-  });
-
+  // ---- password flow ----
   document.getElementById('verify-form').addEventListener('submit', function (e) {
     e.preventDefault();
 
@@ -230,7 +370,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'X-CSRF-TOKEN': csrf(),
         'Accept': 'application/json'
       },
       body: JSON.stringify(payload)
