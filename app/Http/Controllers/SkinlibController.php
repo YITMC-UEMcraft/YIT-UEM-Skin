@@ -265,12 +265,14 @@ class SkinlibController extends Controller
         }
 
         $image = Image::make($file);
-        $imagick = $image->getCore();
-        $imagick->setOption('png:compression-filter', '0');
-        $imagick->setOption('png:compression-level', '9');
-        $imagick->setOption('png:compression-strategy', '0');
-        $imagick->setOption('png:exclude-chunk', 'all');
-        $imagick->stripImage();
+        $core = $image->getCore();
+        if ($core instanceof \Imagick) {
+            $core->setOption('png:compression-filter', '0');
+            $core->setOption('png:compression-level', '9');
+            $core->setOption('png:compression-strategy', '0');
+            $core->setOption('png:exclude-chunk', 'all');
+            $core->stripImage();
+        }
         $sanitized = $image->encode('png')->getEncoded();
 
         $hash = hash('sha256', $image->encoded);
