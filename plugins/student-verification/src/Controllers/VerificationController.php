@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use StudentVerification\Models\StudentVerification;
 use StudentVerification\Services\YitAuthService;
 use StudentVerification\Services\UemAuthService;
+use StudentVerification\Services\UemJwAuthService;
 
 class VerificationController extends Controller
 {
@@ -16,10 +17,13 @@ class VerificationController extends Controller
 
     private UemAuthService $uemAuth;
 
-    public function __construct(YitAuthService $yitAuth, UemAuthService $uemAuth)
+    private UemJwAuthService $uemJwAuth;
+
+    public function __construct(YitAuthService $yitAuth, UemAuthService $uemAuth, UemJwAuthService $uemJwAuth)
     {
         $this->yitAuth = $yitAuth;
         $this->uemAuth = $uemAuth;
+        $this->uemJwAuth = $uemJwAuth;
         $this->middleware('auth');
         // 防止对学校认证系统进行暴力尝试
         $this->middleware('throttle:5,1')->only('verify');
@@ -70,8 +74,8 @@ class VerificationController extends Controller
         $studentId = trim($request->input('student_id'));
         $password = $request->input('password');
 
-        // 选择认证服务
-        $authService = $school === 'yit' ? $this->yitAuth : $this->uemAuth;
+        // 选择认证服务（UEM 备用密码通道走教务系统直连，统一认证受滑块验证码限制）
+        $authService = $school === 'yit' ? $this->yitAuth : $this->uemJwAuth;
 
         // 执行认证（密码仅在该请求内使用）
         $result = $authService->verify($studentId, $password);
