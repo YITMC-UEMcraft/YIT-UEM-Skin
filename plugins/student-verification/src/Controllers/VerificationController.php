@@ -19,7 +19,7 @@ class VerificationController extends Controller
     {
         $this->yitAuth = $yitAuth;
         $this->uemQr = $uemQr;
-        $this->middleware('auth');
+        $this->middleware('auth')->except('privacy');
         // 防止对学校认证系统进行暴力尝试
         $this->middleware('throttle:5,1')->only('verify');
     }
@@ -34,8 +34,6 @@ class VerificationController extends Controller
 
         return view('StudentVerification::verify-page', [
             'verified' => $verification ? $verification->verified : false,
-            'studentName' => $verification ? $verification->student_name : null,
-            'studentId' => $verification ? $verification->student_id : null,
             'school' => $verification ? $verification->school : null,
         ]);
     }
@@ -59,7 +57,6 @@ class VerificationController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => '您已经通过验证',
-                'student_name' => $existing->student_name,
             ]);
         }
 
@@ -86,13 +83,13 @@ class VerificationController extends Controller
                 [
                     'school' => 'yit',
                     'student_id' => $studentId,
-                    'student_name' => $result['student_name'],
+                    'student_name' => '',
                     'verified' => true,
                     'verified_at' => now(),
                 ]
             );
 
-            $result['message'] = '验证通过！欢迎，' . $result['student_name'];
+            $result['message'] = '验证通过';
         }
 
         return response()->json($result);
@@ -104,10 +101,9 @@ class VerificationController extends Controller
     public function uemQrCreate(Request $request): JsonResponse
     {
         $studentId = trim($request->input('student_id', ''));
-        $studentName = trim($request->input('student_name', ''));
 
-        if ($studentId === '' || $studentName === '') {
-            return response()->json(['success' => false, 'message' => '请先填写学号和姓名']);
+        if ($studentId === '') {
+            return response()->json(['success' => false, 'message' => '请先填写学号']);
         }
 
         $jarDir = storage_path('framework/uem-qr');
@@ -134,7 +130,6 @@ class VerificationController extends Controller
             'jar' => $jar,
             'uuid' => $result['uuid'],
             'student_id' => $studentId,
-            'student_name' => $studentName,
         ]]);
 
         return response()->json([
@@ -197,7 +192,6 @@ class VerificationController extends Controller
         }
 
         $pendingId = $qr['student_id'];
-        $pendingName = $qr['student_name'];
 
         if (!$completed) {
             @unlink($jar);
@@ -214,14 +208,12 @@ class VerificationController extends Controller
             return response()->json(['status' => 'error', 'message' => '扫码登录的账号与填写的学号不一致']);
         }
 
-        $studentName = $identity['student_name'] !== '' ? $identity['student_name'] : $pendingName;
-
         StudentVerification::updateOrCreate(
             ['user_id' => auth()->user()->uid],
             [
                 'school' => 'uem',
                 'student_id' => $pendingId,
-                'student_name' => $studentName,
+                'student_name' => '',
                 'verified' => true,
                 'verified_at' => now(),
             ]
@@ -232,10 +224,20 @@ class VerificationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => '验证通过！欢迎，' . $studentName,
+            'message' => '验证通过',
         ]);
     }
 
+
+    /**
+     * 隐私协议页面
+     */
+    public function privacy()
+    {
+        return view('StudentVerification::privacy', [
+            'siteName' => option_localized('site_name'),
+        ]);
+    }
     /**
      * 检查验证状态（AJAX）
      */
@@ -246,10 +248,7 @@ class VerificationController extends Controller
 
         return response()->json([
             'verified' => $verification ? (bool) $verification->verified : false,
-            'student_name' => $verification ? $verification->student_name : null,
-            'student_id' => $verification ? $verification->student_id : null,
             'school' => $verification ? $verification->school : null,
-            'verified_at' => $verification ? optional($verification->verified_at)->toDateTimeString() : null,
         ]);
     }
 }

@@ -30,14 +30,6 @@
                   {% endif %}
                 </td>
               </tr>
-              <tr>
-                <th class="bg-light">{{ trans('StudentVerification::student-verification.student_id') }}</th>
-                <td>{{ studentId }}</td>
-              </tr>
-              <tr>
-                <th class="bg-light">{{ trans('StudentVerification::student-verification.student_name') }}</th>
-                <td>{{ studentName }}</td>
-              </tr>
             </tbody>
           </table>
           <p class="text-muted mb-0 mt-2" style="font-size: .875rem">
@@ -71,15 +63,6 @@
               <input type="text" class="form-control" id="student-id-input" name="student_id"
                      placeholder="{{ trans('StudentVerification::student-verification.student_id_placeholder') }}"
                      required autocomplete="off">
-            </div>
-
-            <div id="uem-name-group" class="form-group d-none">
-              <label for="student-name-input">
-                {{ trans('StudentVerification::student-verification.student_name') }}
-              </label>
-              <input type="text" class="form-control" id="student-name-input" name="student_name"
-                     placeholder="{{ trans('StudentVerification::student-verification.student_name_placeholder') }}"
-                     autocomplete="off">
             </div>
 
             <div id="yit-password-group" class="form-group">
@@ -160,7 +143,6 @@
     return;
   }
 
-  var nameGroup = document.getElementById('uem-name-group');
   var qrBox = document.getElementById('uem-qr-box');
   var yitPasswordGroup = document.getElementById('yit-password-group');
   var submitBtn = document.getElementById('verify-btn');
@@ -179,7 +161,6 @@
     var school = schoolSelect.value;
     hint.textContent = hints[school] || '';
     var isUem = school === 'uem';
-    nameGroup.classList.toggle('d-none', !isUem);
     qrBox.classList.toggle('d-none', !isUem);
     yitPasswordGroup.classList.toggle('d-none', isUem);
     submitBtn.classList.toggle('d-none', isUem);
@@ -196,10 +177,9 @@
   // ---- UEM QR flow ----
   document.getElementById('uem-qr-btn').addEventListener('click', function () {
     var sid = document.getElementById('student-id-input').value.trim();
-    var name = document.getElementById('student-name-input').value.trim();
-    if (!sid || !name) {
+    if (!sid) {
       result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-        '{{ trans("StudentVerification::student-verification.uem_need_both") }}</div>';
+        '{{ trans("StudentVerification::student-verification.uem_need_student_id") }}</div>';
       return;
     }
 
@@ -214,7 +194,7 @@
         'X-CSRF-TOKEN': csrf(),
         'Accept': 'application/json'
       },
-      body: JSON.stringify({student_id: sid, student_name: name})
+      body: JSON.stringify({student_id: sid})
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {

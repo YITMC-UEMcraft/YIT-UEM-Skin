@@ -26,6 +26,8 @@ return function (Plugin $plugin): void {
                 ->name('student-verification.uem-qr-create');
             $router->get('student-verification/uem/qr/status', 'StudentVerification\Controllers\VerificationController@uemQrStatus')
                 ->name('student-verification.uem-qr-status');
+            $router->get('privacy', 'StudentVerification\Controllers\VerificationController@privacy')
+                ->name('student-verification.privacy');
         });
     });
 
