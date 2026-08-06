@@ -65,7 +65,8 @@
               </label>
               <input type="text" class="form-control" id="student-id-input" name="student_id"
                      placeholder="{{ trans('StudentVerification::student-verification.student_id_placeholder') }}"
-                     required autocomplete="off">
+                     autocomplete="off">
+              <small class="form-text text-muted" id="sid-hint"></small>
             </div>
 
             <div id="yit-password-group" class="form-group">
@@ -89,17 +90,9 @@
                 <input type="text" class="form-control" id="invite-code-input" name="code"
                        placeholder="{{ trans('StudentVerification::student-verification.invite_code_placeholder') }}"
                        autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label for="invite-student-id-input">
-                  {{ trans('StudentVerification::student-verification.invite_student_id_label') }}
-                </label>
-                <input type="text" class="form-control" id="invite-student-id-input" name="invite_student_id"
-                       placeholder="{{ trans('StudentVerification::student-verification.invite_student_id_placeholder') }}"
-                       autocomplete="off">
                 <small class="form-text text-muted">
                   <i class="fas fa-info-circle mr-1"></i>
-                  {{ trans('StudentVerification::student-verification.invite_student_id_hint') }}
+                  {{ trans('StudentVerification::student-verification.invite_code_hint') }}
                 </small>
               </div>
             </div>
@@ -178,6 +171,12 @@
   var externalCodeGroup = document.getElementById('external-code-group');
   var submitBtn = document.getElementById('verify-btn');
   var hint = document.getElementById('school-hint');
+  var sidHint = document.getElementById('sid-hint');
+  var sidHints = {
+    yit: '{{ trans("StudentVerification::student-verification.sid_hint_yit") }}',
+    uem: '{{ trans("StudentVerification::student-verification.sid_hint_uem") }}',
+    external: '{{ trans("StudentVerification::student-verification.sid_hint_external") }}'
+  };
   var result = document.getElementById('verify-result');
   var qrTimer = null;
 
@@ -191,6 +190,7 @@
   function renderSchool() {
     var school = schoolSelect.value;
     hint.textContent = hints[school] || '';
+    sidHint.textContent = sidHints[school] || '';
     var isUem = school === 'uem';
     var isExternal = school === 'external';
     qrBox.classList.toggle('d-none', !isUem);
@@ -293,7 +293,7 @@
 
     if (school === 'external') {
       var code = document.getElementById('invite-code-input').value.trim();
-      var inviteSid = document.getElementById('invite-student-id-input').value.trim();
+      var inviteSid = document.getElementById('student-id-input').value.trim();
       if (!code) {
         result.innerHTML = '<div class="alert alert-danger mb-0">{{ trans("StudentVerification::student-verification.invite_code_required") }}</div>';
         submitBtn.disabled = false;
