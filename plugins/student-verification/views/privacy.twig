@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>隐私协议 - {{ siteName }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f4f6f9;
+      color: #2d3748;
+      line-height: 1.75;
+    }
+    .header {
+      background: #1a202c;
+      color: #fff;
+      padding: 28px 20px;
+      text-align: center;
+    }
+    .header .site { font-size: 1.1rem; font-weight: 600; }
+    .header .title { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+    .wrap { max-width: 760px; margin: 32px auto; padding: 0 20px 48px; }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 28px 32px;
+    }
+    .card h2 { font-size: 1.05rem; margin: 24px 0 8px; color: #1a202c; }
+    .card h2:first-child { margin-top: 0; }
+    .card p, .card li { font-size: .92rem; color: #4a5568; }
+    .card ul { padding-left: 22px; }
+    .card .updated { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; color: #a0aec0; font-size: .8rem; }
+    .footer { text-align: center; color: #a0aec0; font-size: .8rem; padding: 0 20px 40px; }
+    .footer a { color: #718096; text-decoration: none; }
+    a { color: #3182ce; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="site">{{ siteName }}</div>
+    <div class="title">隐私协议</div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <p>本站（{{ siteName }}）是一个面向燕京理工学院与应急管理大学在校学生的 Minecraft 皮肤与联合认证平台。我们非常重视你的个人信息安全，以下协议说明本站如何处理学生身份验证过程中涉及的信息。</p>
+
+      <h2>一、我们如何验证身份</h2>
+      <ul>
+        <li>燕京理工学院：使用教务系统账号（学号 + 密码）验证在校生身份；</li>
+        <li>应急管理大学：使用学校统一认证的扫码验证，你用学校 App 扫码确认后完成验证。</li>
+      </ul>
+
+      <h2>二、我们收集什么</h2>
+      <ul>
+        <li>学校名称（用于展示你的验证所属学校）；</li>
+        <li>学号（仅用于身份核验与防止重复绑定，仅保存在服务器数据库中）；</li>
+        <li>验证时间。</li>
+      </ul>
+
+      <h2>三、我们不收集什么</h2>
+      <ul>
+        <li><strong>不收集密码</strong>：教务系统密码只在你点击验证的那一次请求中使用，不保存、不缓存、不写入日志；扫码验证全程不经过密码。</li>
+        <li><strong>不收集姓名</strong>：本站不保存、也不在页面上展示你的真实姓名。</li>
+        <li><strong>不收集学业信息</strong>：不记录成绩、课表、选课等任何学业数据。</li>
+      </ul>
+
+      <h2>四、信息如何保存与展示</h2>
+      <ul>
+        <li>验证信息仅存储在本站服务器数据库中，用于确认你的在校生身份；</li>
+        <li>网页上<strong>只显示你所属的学校</strong>，不显示学号、姓名等个人信息；</li>
+        <li>普通用户之间互不可见任何验证信息。</li>
+      </ul>
+
+      <h2>五、信息共享</h2>
+      <ul>
+        <li>本站不与任何第三方共享学号、姓名等个人信息；</li>
+        <li>接入 MUA Union 联合认证时，仅同步 Minecraft 角色名与对应 UUID，不涉及学号、姓名等个人信息。</li>
+      </ul>
+
+      <h2>六、你的权利</h2>
+      <p>你可以随时联系站点管理员，要求删除账号及相关验证记录。站点管理员不会在公开页面展示任何学生的学号或姓名。</p>
+
+      <p class="updated">本协议自 2026 年发布并生效，如有调整将在此页面更新。</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="/">返回首页</a> &nbsp;·&nbsp; Copyright &copy; 2026 {{ siteName }}
+  </div>
+</body>
+</html>
