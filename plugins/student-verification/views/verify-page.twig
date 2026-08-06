@@ -25,8 +25,10 @@
                 <td>
                   {% if school == 'yit' %}
                     {{ trans('StudentVerification::student-verification.school_yit') }}
-                  {% else %}
+                  {% elseif school == 'uem' %}
                     {{ trans('StudentVerification::student-verification.school_uem') }}
+                  {% else %}
+                    {{ trans('StudentVerification::student-verification.school_external') }}
                   {% endif %}
                 </td>
               </tr>
@@ -52,6 +54,7 @@
                 </option>
                 <option value="yit">{{ trans('StudentVerification::student-verification.school_yit') }}</option>
                 <option value="uem">{{ trans('StudentVerification::student-verification.school_uem') }}</option>
+                <option value="external">{{ trans('StudentVerification::student-verification.school_external') }}</option>
               </select>
               <small class="form-text text-muted" id="school-hint"></small>
             </div>
@@ -75,6 +78,19 @@
               <small class="form-text text-muted">
                 <i class="fas fa-shield-alt mr-1"></i>
                 {{ trans('StudentVerification::student-verification.password_notice') }}
+              </small>
+            </div>
+
+            <div id="external-code-group" class="form-group d-none">
+              <label for="invite-code-input">
+                {{ trans('StudentVerification::student-verification.invite_code_label') }}
+              </label>
+              <input type="text" class="form-control" id="invite-code-input" name="code"
+                     placeholder="{{ trans('StudentVerification::student-verification.invite_code_placeholder') }}"
+                     autocomplete="off">
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle mr-1"></i>
+                {{ trans('StudentVerification::student-verification.invite_code_hint') }}
               </small>
             </div>
 
@@ -120,6 +136,9 @@
         <h6 class="font-weight-bold">{{ trans('StudentVerification::student-verification.school_uem') }}</h6>
         <p class="text-muted">{{ trans('StudentVerification::student-verification.help_uem') }}</p>
         <hr>
+        <h6 class="font-weight-bold">{{ trans('StudentVerification::student-verification.school_external') }}</h6>
+        <p class="text-muted">{{ trans('StudentVerification::student-verification.help_external') }}</p>
+        <hr>
         <p class="text-muted mb-0">
           <i class="fas fa-lock mr-1"></i>
           {{ trans('StudentVerification::student-verification.help_privacy') }}
@@ -135,7 +154,8 @@
 (function () {
   var hints = {
     yit: '{{ trans("StudentVerification::student-verification.hint_yit") }}',
-    uem: '{{ trans("StudentVerification::student-verification.hint_uem") }}'
+    uem: '{{ trans("StudentVerification::student-verification.hint_uem") }}',
+    external: '{{ trans("StudentVerification::student-verification.hint_external") }}'
   };
 
   var schoolSelect = document.getElementById('school-select');
@@ -145,6 +165,7 @@
 
   var qrBox = document.getElementById('uem-qr-box');
   var yitPasswordGroup = document.getElementById('yit-password-group');
+  var externalCodeGroup = document.getElementById('external-code-group');
   var submitBtn = document.getElementById('verify-btn');
   var hint = document.getElementById('school-hint');
   var result = document.getElementById('verify-result');
@@ -161,8 +182,10 @@
     var school = schoolSelect.value;
     hint.textContent = hints[school] || '';
     var isUem = school === 'uem';
+    var isExternal = school === 'external';
     qrBox.classList.toggle('d-none', !isUem);
-    yitPasswordGroup.classList.toggle('d-none', isUem);
+    yitPasswordGroup.classList.toggle('d-none', isUem || isExternal);
+    externalCodeGroup.classList.toggle('d-none', !isExternal);
     submitBtn.classList.toggle('d-none', isUem);
     result.innerHTML = '';
     stopQrPolling();
@@ -247,7 +270,7 @@
       .catch(function () { /* keep polling */ });
   }
 
-  // ---- YIT password flow ----
+  // ---- YIT password / external invite code flow ----
   document.getElementById('verify-form').addEventListener('submit', function (e) {
     e.preventDefault();
 
@@ -256,8 +279,33 @@
       '{{ trans("StudentVerification::student-verification.verifying") }}';
     result.innerHTML = '';
 
+    var school = schoolSelect.value;
+
+    if (school === 'external') {
+      var code = document.getElementById('invite-code-input').value.trim();
+      if (!code) {
+        result.innerHTML = '<div class="alert alert-danger mb-0">{{ trans("StudentVerification::student-verification.invite_code_required") }}</div>';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
+        return;
+      }
+      fetch('{{ url("student-verification/code") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf(),
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({code: code})
+      })
+        .then(function (resp) { return resp.json().catch(function () { return null; }); })
+        .then(function (data) { handleResult(data); })
+        .catch(function () { handleResult(null); });
+      return;
+    }
+
     var payload = {
-      school: schoolSelect.value,
+      school: school,
       student_id: document.getElementById('student-id-input').value,
       password: document.getElementById('password-input').value
     };
@@ -272,28 +320,25 @@
       body: JSON.stringify(payload)
     })
       .then(function (resp) { return resp.json().catch(function () { return null; }); })
-      .then(function (data) {
-        if (data && data.success) {
-          result.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i>' +
-            (data.message || '{{ trans("StudentVerification::student-verification.verify_success") }}') + '</div>';
-          setTimeout(function () { window.location.reload(); }, 1500);
-        } else {
-          var message = data && data.message
-            ? data.message
-            : '{{ trans("StudentVerification::student-verification.verify_failed") }}';
-          result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-            message + '</div>';
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
-        }
-      })
-      .catch(function () {
-        result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
-          '{{ trans("StudentVerification::student-verification.network_error") }}</div>';
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
-      });
+      .then(function (data) { handleResult(data); })
+      .catch(function () { handleResult(null); });
   });
+
+  function handleResult(data) {
+    if (data && data.success) {
+      result.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle mr-1"></i>' +
+        (data.message || '{{ trans("StudentVerification::student-verification.verify_success") }}') + '</div>';
+      setTimeout(function () { window.location.reload(); }, 1500);
+    } else {
+      var message = data && data.message
+        ? data.message
+        : '{{ trans("StudentVerification::student-verification.verify_failed") }}';
+      result.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-times-circle mr-1"></i>' +
+        message + '</div>';
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check mr-1"></i>{{ trans("StudentVerification::student-verification.verify_btn") }}';
+    }
+  }
 })();
 </script>
 {% endblock %}

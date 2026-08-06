@@ -28,6 +28,14 @@ return function (Plugin $plugin): void {
                 ->name('student-verification.uem-qr-status');
             $router->get('privacy', 'StudentVerification\Controllers\VerificationController@privacy')
                 ->name('student-verification.privacy');
+            $router->post('student-verification/code', 'StudentVerification\Controllers\VerificationController@codeVerify')
+                ->name('student-verification.code-verify');
+            $router->get('admin/student-verification/codes', 'StudentVerification\Controllers\CodeAdminController@index')
+                ->name('student-verification.admin-codes');
+            $router->post('admin/student-verification/codes', 'StudentVerification\Controllers\CodeAdminController@store')
+                ->name('student-verification.admin-codes.store');
+            $router->post('admin/student-verification/codes/{id}/revoke', 'StudentVerification\Controllers\CodeAdminController@revoke')
+                ->name('student-verification.admin-codes.revoke');
         });
     });
 
@@ -74,6 +82,17 @@ return function (Plugin $plugin): void {
             );
         }
     });
+
+    // Add admin menu item (invitation code management)
+    Hook::addMenuItem(
+        'admin',
+        6,
+        [
+            'title' => 'StudentVerification::student-verification.admin_codes_menu',
+            'link' => 'admin/student-verification/codes',
+            'icon' => 'fa-ticket-alt',
+        ]
+    );
 
     // Add user menu item (user center sidebar)
     Hook::addMenuItem(

@@ -27,6 +27,23 @@ class ServiceProvider extends BaseServiceProvider
             });
         }
 
+
+        // 邀请码表（管理员发放给外校人员的验证码）
+        if (!Schema::hasTable('verification_codes')) {
+            Schema::create('verification_codes', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->string('code', 32)->unique();
+                $table->string('remark', 255)->default('');
+                $table->unsignedInteger('created_by');
+                $table->unsignedInteger('used_by')->nullable();
+                $table->timestamp('used_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
+                $table->boolean('revoked')->default(false);
+                $table->timestamps();
+
+                $table->index('revoked');
+            });
+        }
         // 注册视图命名空间
         $this->loadViewsFrom(
             dirname(__DIR__) . '/views',

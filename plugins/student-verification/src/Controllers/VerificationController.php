@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use StudentVerification\Models\StudentVerification;
+use StudentVerification\Models\VerificationCode;
 use StudentVerification\Services\UemQrService;
 use StudentVerification\Services\YitAuthService;
 
@@ -229,6 +230,53 @@ class VerificationController extends Controller
     }
 
 
+
+    /**
+     * 外校人员：使用管理员发放的邀请码验证
+     */
+    public function codeVerify(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => 'required|string|max:32',
+        ]);
+
+        $user = auth()->user();
+
+        $existing = StudentVerification::forUser($user->uid);
+        if ($existing && $existing->verified) {
+            return response()->json([
+                'success' => true,
+                'message' => '您已经通过验证',
+            ]);
+        }
+
+        $codeStr = strtoupper(trim($request->input('code')));
+        $code = VerificationCode::where('code', $codeStr)->first();
+
+        if (!$code) {
+            return response()->json(['success' => false, 'message' => '邀请码无效']);
+        }
+        if (!$code->isUsable()) {
+            return response()->json(['success' => false, 'message' => '邀请码不可用（已使用、已作废或已过期）']);
+        }
+
+        $code->used_by = $user->uid;
+        $code->used_at = now();
+        $code->save();
+
+        StudentVerification::updateOrCreate(
+            ['user_id' => $user->uid],
+            [
+                'school' => 'external',
+                'student_id' => $codeStr,
+                'student_name' => '',
+                'verified' => true,
+                'verified_at' => now(),
+            ]
+        );
+
+        return response()->json(['success' => true, 'message' => '验证通过']);
+    }
     /**
      * 隐私协议页面
      */
