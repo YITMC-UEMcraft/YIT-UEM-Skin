@@ -13,6 +13,7 @@ return [
             Schema::create('verification_codes', function ($table) {
                 $table->bigIncrements('id');
                 $table->string('code', 32)->unique();
+                $table->string('school', 16)->default('external');
                 $table->string('remark', 255)->default('');
                 $table->unsignedInteger('created_by');
                 $table->unsignedInteger('used_by')->nullable();

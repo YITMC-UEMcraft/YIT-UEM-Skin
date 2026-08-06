@@ -31,11 +31,13 @@ class CodeAdminController extends Controller
     {
         $request->validate([
             'count' => 'required|integer|min:1|max:100',
+            'school' => 'required|in:yit,uem,external',
             'remark' => 'nullable|string|max:255',
             'expire_days' => 'nullable|integer|min:1|max:365',
         ]);
 
         $count = (int) $request->input('count');
+        $school = $request->input('school');
         $remark = trim($request->input('remark', ''));
         $expiresAt = null;
         $days = (int) $request->input('expire_days');
@@ -48,6 +50,7 @@ class CodeAdminController extends Controller
             $code = 'YITUEM-' . strtoupper(bin2hex(random_bytes(5)));
             VerificationCode::create([
                 'code' => $code,
+                'school' => $school,
                 'remark' => $remark,
                 'created_by' => auth()->user()->uid,
                 'expires_at' => $expiresAt,

@@ -54,7 +54,7 @@
                 </option>
                 <option value="yit">{{ trans('StudentVerification::student-verification.school_yit') }}</option>
                 <option value="uem">{{ trans('StudentVerification::student-verification.school_uem') }}</option>
-                <option value="external">{{ trans('StudentVerification::student-verification.school_external') }}</option>
+                <option value="external">{{ trans('StudentVerification::student-verification.school_external_option') }}</option>
               </select>
               <small class="form-text text-muted" id="school-hint"></small>
             </div>
@@ -81,17 +81,27 @@
               </small>
             </div>
 
-            <div id="external-code-group" class="form-group d-none">
-              <label for="invite-code-input">
-                {{ trans('StudentVerification::student-verification.invite_code_label') }}
-              </label>
-              <input type="text" class="form-control" id="invite-code-input" name="code"
-                     placeholder="{{ trans('StudentVerification::student-verification.invite_code_placeholder') }}"
-                     autocomplete="off">
-              <small class="form-text text-muted">
-                <i class="fas fa-info-circle mr-1"></i>
-                {{ trans('StudentVerification::student-verification.invite_code_hint') }}
-              </small>
+            <div id="external-code-group" class="d-none">
+              <div class="form-group">
+                <label for="invite-code-input">
+                  {{ trans('StudentVerification::student-verification.invite_code_label') }}
+                </label>
+                <input type="text" class="form-control" id="invite-code-input" name="code"
+                       placeholder="{{ trans('StudentVerification::student-verification.invite_code_placeholder') }}"
+                       autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="invite-student-id-input">
+                  {{ trans('StudentVerification::student-verification.invite_student_id_label') }}
+                </label>
+                <input type="text" class="form-control" id="invite-student-id-input" name="invite_student_id"
+                       placeholder="{{ trans('StudentVerification::student-verification.invite_student_id_placeholder') }}"
+                       autocomplete="off">
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  {{ trans('StudentVerification::student-verification.invite_student_id_hint') }}
+                </small>
+              </div>
             </div>
 
             <div id="uem-qr-box" class="d-none">
@@ -283,6 +293,7 @@
 
     if (school === 'external') {
       var code = document.getElementById('invite-code-input').value.trim();
+      var inviteSid = document.getElementById('invite-student-id-input').value.trim();
       if (!code) {
         result.innerHTML = '<div class="alert alert-danger mb-0">{{ trans("StudentVerification::student-verification.invite_code_required") }}</div>';
         submitBtn.disabled = false;
@@ -296,7 +307,7 @@
           'X-CSRF-TOKEN': csrf(),
           'Accept': 'application/json'
         },
-        body: JSON.stringify({code: code})
+        body: JSON.stringify({code: code, student_id: inviteSid})
       })
         .then(function (resp) { return resp.json().catch(function () { return null; }); })
         .then(function (data) { handleResult(data); })

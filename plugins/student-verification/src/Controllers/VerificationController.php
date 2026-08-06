@@ -78,6 +78,10 @@ class VerificationController extends Controller
         $result = $this->yitAuth->verify($studentId, $password);
 
         if ($result['success']) {
+            if ($this->studentIdTaken('yit', $studentId, $user->uid)) {
+                return response()->json(['success' => false, 'message' => '该学号已被其他账号验证']);
+            }
+
             // 保存验证记录（不保存密码）
             StudentVerification::updateOrCreate(
                 ['user_id' => $user->uid],
@@ -209,6 +213,13 @@ class VerificationController extends Controller
             return response()->json(['status' => 'error', 'message' => '扫码登录的账号与填写的学号不一致']);
         }
 
+        if ($this->studentIdTaken('uem', $pendingId, auth()->user()->uid)) {
+            @unlink($jar);
+            session()->forget('uem_qr');
+
+            return response()->json(['status' => 'error', 'message' => '该学号已被其他账号验证']);
+        }
+
         StudentVerification::updateOrCreate(
             ['user_id' => auth()->user()->uid],
             [
@@ -260,6 +271,25 @@ class VerificationController extends Controller
             return response()->json(['success' => false, 'message' => '邀请码不可用（已使用、已作废或已过期）']);
         }
 
+        // 邀请码绑定的学校：校友绑定所在学校，外校为 external
+        $school = in_array($code->school, ['yit', 'uem', 'external'], true)
+            ? $code->school
+            : 'external';
+
+        // 校友（绑定学校的邀请码）需要填写学号
+        $studentId = $school === 'external'
+            ? $codeStr
+            : trim($request->input('student_id', ''));
+
+        if ($school !== 'external') {
+            if ($studentId === '' || !preg_match('/^[A-Za-z0-9]{4,32}$/', $studentId)) {
+                return response()->json(['success' => false, 'message' => '请填写正确的学号']);
+            }
+            if ($this->studentIdTaken($school, $studentId, $user->uid)) {
+                return response()->json(['success' => false, 'message' => '该学号已被其他账号验证']);
+            }
+        }
+
         $code->used_by = $user->uid;
         $code->used_at = now();
         $code->save();
@@ -267,8 +297,8 @@ class VerificationController extends Controller
         StudentVerification::updateOrCreate(
             ['user_id' => $user->uid],
             [
-                'school' => 'external',
-                'student_id' => $codeStr,
+                'school' => $school,
+                'student_id' => $studentId,
                 'student_name' => '',
                 'verified' => true,
                 'verified_at' => now(),
@@ -276,6 +306,18 @@ class VerificationController extends Controller
         );
 
         return response()->json(['success' => true, 'message' => '验证通过']);
+    }
+
+    /**
+     * 检查（学校 + 学号）是否已被其他账号验证，避免两校学号撞号。
+     */
+    private function studentIdTaken(string $school, string $studentId, int $exceptUid): bool
+    {
+        return StudentVerification::where('school', $school)
+            ->where('student_id', $studentId)
+            ->where('user_id', '!=', $exceptUid)
+            ->where('verified', true)
+            ->exists();
     }
     /**
      * 隐私协议页面

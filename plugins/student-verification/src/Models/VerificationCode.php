@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * 管理员发放的邀请码（用于外校人员验证）。
+ * 管理员发放的邀请码（用于校友/外校人员验证）。
  *
  * @property int $id
  * @property string $code
+ * @property string $school      'yit' | 'uem' | 'external'
  * @property string $remark
  * @property int $created_by
  * @property int|null $used_by
@@ -24,6 +25,7 @@ class VerificationCode extends Model
 
     protected $fillable = [
         'code',
+        'school',
         'remark',
         'created_by',
         'used_by',

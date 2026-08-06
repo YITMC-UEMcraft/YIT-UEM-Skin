@@ -23,6 +23,15 @@
             <input type="number" class="form-control" name="count" min="1" max="100" value="1" required>
           </div>
           <div class="form-group">
+            <label>{{ trans('StudentVerification::student-verification.admin_codes_school') }}</label>
+            <select class="form-control" name="school" required>
+              <option value="yit">{{ trans('StudentVerification::student-verification.school_yit') }}</option>
+              <option value="uem">{{ trans('StudentVerification::student-verification.school_uem') }}</option>
+              <option value="external">{{ trans('StudentVerification::student-verification.school_external_short') }}</option>
+            </select>
+            <small class="form-text text-muted">{{ trans('StudentVerification::student-verification.admin_codes_school_hint') }}</small>
+          </div>
+          <div class="form-group">
             <label>{{ trans('StudentVerification::student-verification.admin_codes_remark') }}</label>
             <input type="text" class="form-control" name="remark" maxlength="255"
                    placeholder="{{ trans('StudentVerification::student-verification.admin_codes_remark_placeholder') }}">
@@ -55,6 +64,7 @@
           <thead>
             <tr>
               <th>{{ trans('StudentVerification::student-verification.admin_codes_code') }}</th>
+              <th>{{ trans('StudentVerification::student-verification.admin_codes_school') }}</th>
               <th>{{ trans('StudentVerification::student-verification.admin_codes_remark') }}</th>
               <th>{{ trans('StudentVerification::student-verification.admin_codes_status') }}</th>
               <th>{{ trans('StudentVerification::student-verification.admin_codes_user') }}</th>
@@ -67,6 +77,15 @@
             {% for code in codes %}
               <tr>
                 <td><code>{{ code.code }}</code></td>
+                <td>
+                  {% if code.school == 'yit' %}
+                    {{ trans('StudentVerification::student-verification.school_yit') }}
+                  {% elseif code.school == 'uem' %}
+                    {{ trans('StudentVerification::student-verification.school_uem') }}
+                  {% else %}
+                    {{ trans('StudentVerification::student-verification.school_external_short') }}
+                  {% endif %}
+                </td>
                 <td style="max-width:160px">{{ code.remark }}</td>
                 <td>
                   {% if code.used_by %}
@@ -96,7 +115,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="7" class="text-center text-muted py-4">
+                <td colspan="8" class="text-center text-muted py-4">
                   {{ trans('StudentVerification::student-verification.admin_codes_empty') }}
                 </td>
               </tr>

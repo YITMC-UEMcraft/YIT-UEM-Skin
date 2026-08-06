@@ -33,6 +33,7 @@ class ServiceProvider extends BaseServiceProvider
             Schema::create('verification_codes', function (Blueprint $table) {
                 $table->bigIncrements('id');
                 $table->string('code', 32)->unique();
+                $table->string('school', 16)->default('external');
                 $table->string('remark', 255)->default('');
                 $table->unsignedInteger('created_by');
                 $table->unsignedInteger('used_by')->nullable();
@@ -42,6 +43,13 @@ class ServiceProvider extends BaseServiceProvider
                 $table->timestamps();
 
                 $table->index('revoked');
+            });
+        }
+
+        // 兼容旧表：补充学校字段
+        if (Schema::hasTable('verification_codes') && !Schema::hasColumn('verification_codes', 'school')) {
+            Schema::table('verification_codes', function (Blueprint $table) {
+                $table->string('school', 16)->default('external')->after('code');
             });
         }
         // 注册视图命名空间
