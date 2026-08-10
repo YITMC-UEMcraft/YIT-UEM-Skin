@@ -27,3 +27,5 @@ storage/options.php
 resources/views/overrides
 .DS_Store
 */.DS_Store
+# local dev helpers
+seed-user.php

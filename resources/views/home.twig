@@ -2,32 +2,107 @@
 <html lang="{{ locale }}">
   <head>
     {{ include('shared.head') }}
-    <link rel="preload" as="image" href="{{ home_pic_url }}">
+    <link rel="preload" as="image" href="{{ cdn_base }}/app/bg/1.webp">
     <title>{{ site_name }}</title>
     <style>
+      /* ---------- Background slideshow ---------- */
+      .hp-bg-slideshow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -2;
+        overflow: hidden;
+        background-color: #141b26;
+      }
+
+      .hp-bg-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+        transition: opacity 1.6s ease-in-out;
+      }
+
+      .hp-bg-slide.active {
+        opacity: 1;
+      }
+
+      /* Soft overlay keeps text readable on any photo */
+      .hp-bg-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+        background: linear-gradient(
+          180deg,
+          rgba(13, 20, 30, 0.26),
+          rgba(13, 20, 30, 0.42)
+        );
+      }
+
       .hp-wrapper {
-        {% if fixed_bg %}
-          background-color: rgba(0, 0, 0, 0);
-        {% else %}
-          background-image: url('{{ home_pic_url }}');
-        {% endif %}
+        background-color: transparent !important;
+        background-image: none !important;
+      }
+
+      .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .navbar-logo {
+        height: 1.7em;
+        width: auto;
+        display: inline-block;
+      }
+
+      .splash-logo {
+        display: block;
+        width: auto;
+        max-width: min(680px, 86vw);
+        max-height: 48vh;
+        height: auto;
+        margin: 0 auto 20px;
+        filter: drop-shadow(0 6px 24px rgba(0, 0, 0, 0.45));
+      }
+
+      @media (max-width: 767px) {
+        .splash-logo {
+          max-width: 88vw;
+          max-height: 38vh;
+        }
       }
     </style>
     {{ include('assets.home-css', ignore_missing = true) }}
   </head>
 
   <body class="hold-transition layout-top-nav">
-    <div class="hp-wrapper">
-      {% if fixed_bg %}
-        <div id="fixed-bg" style="background-image: url('{{ home_pic_url }}')"></div>
-      {% endif %}
+    <div class="hp-bg-slideshow" id="hp-bg-slideshow" aria-hidden="true">
+      {% for i in 1..10 %}
+        <div class="hp-bg-slide" data-src="{{ cdn_base }}/app/bg/{{ i }}.webp"></div>
+      {% endfor %}
+    </div>
+    <div class="hp-bg-overlay"></div>
 
+    <div class="hp-wrapper">
       <nav class="navbar navbar-expand fixed-top navbar-{{ navbar_color }} navbar-{{ color_mode }}
         ml-0 {{ transparent_navbar ? 'transparent' }}"
       >
         <div class="container">
           <div class="navbar-header">
-            <a href="{{ url('/') }}" class="navbar-brand">{{ site_name }}</a>
+            <a href="{{ url('/') }}" class="navbar-brand">
+              <img class="navbar-logo" src="{{ cdn_base }}/app/favicon.png" alt="">
+              {{ site_name }}
+            </a>
           </div>
 
           <div class="navbar-custom-menu">
@@ -55,7 +130,11 @@
 
       <div class="container">
         <div class="splash">
-          <h1 class="splash-head">{{ site_name }}</h1>
+          <img
+            class="splash-logo"
+            src="{{ cdn_base }}/app/logo-home.png?v=4"
+            alt="{{ site_name }}"
+          >
           <p class="splash-subhead">
             {{ site_description }}
           </p>
@@ -126,8 +205,54 @@
       </div>
     {% endif %}
 
-    <script type="application/json" id="blessing-extra">
-      {{ {transparent_navbar: transparent_navbar}|json_encode|raw }}
+    <script>
+      (function () {
+        var slides = Array.prototype.slice.call(
+          document.querySelectorAll('#hp-bg-slideshow .hp-bg-slide')
+        );
+        if (!slides.length) return;
+
+        var idx = 0;
+
+        function applyBg(i) {
+          if (!slides[i].style.backgroundImage) {
+            slides[i].style.backgroundImage =
+              'url("' + slides[i].getAttribute('data-src') + '")';
+          }
+        }
+
+        function show(i) {
+          applyBg(i);
+          slides.forEach(function (slide, j) {
+            slide.classList.toggle('active', j === i);
+          });
+        }
+
+        function start() {
+          // Show the first image immediately, then preload the rest.
+          show(0);
+          var i = 1;
+          (function preload() {
+            if (i >= slides.length) return;
+            var img = new Image();
+            img.src = slides[i].getAttribute('data-src');
+            img.onload = function () { i += 1; preload(); };
+            img.onerror = function () { i += 1; preload(); };
+          })();
+
+          // Crossfade to the next image every 8 seconds.
+          setInterval(function () {
+            idx = (idx + 1) % slides.length;
+            show(idx);
+          }, 8000);
+        }
+
+        if (document.readyState === 'complete') {
+          start();
+        } else {
+          window.addEventListener('load', start);
+        }
+      })();
     </script>
     {{ include('assets.home', ignore_missing = true) }}
     {{ include('shared.foot') }}
