@@ -1,0 +1,50 @@
+# YIT & UEM 联合皮肤站 - Nginx 站点配置（生产环境示例）
+# 将 skin.example.com 替换为你的真实域名，并修改证书路径。
+# 适用于 PHP 8.3 + PHP-FPM。
+
+# HTTP 强制跳转 HTTPS
+server {
+    listen 80;
+    server_name skin.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name skin.example.com;
+
+    root /var/www/bss/public;
+    index index.php;
+
+    ssl_certificate     /etc/letsencrypt/live/skin.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/skin.example.com/privkey.pem;
+
+    # 皮肤站允许上传的最大材质体积（config/options.php: max_upload_file_size = 1024 KB）
+    client_max_body_size 10m;
+
+    # 关键响应头：Union 要求其他皮肤站能读取本站信息
+    add_header Access-Control-Allow-Origin *;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+    }
+
+    # 静态资源长缓存
+    location ~* \.(png|jpg|jpeg|webp|gif|ico|css|js|woff2?|ttf|svg)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # 隐藏敏感文件
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
