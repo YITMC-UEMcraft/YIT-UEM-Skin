@@ -27,6 +27,7 @@
 7. HTTPS：`certbot --nginx -d skin.example.com`
 8. 性能：`php artisan config:cache && php artisan route:cache && php artisan view:cache`
 9. 一键初始化站点配置（站点名称/公告/插件）：运行 `php scripts/init-site.php`，再 `php artisan options:cache`
+10. 创建超级管理员：运行 `php scripts/create-admin.php 你的邮箱 你的密码`
 9. 确认 Yggdrasil API 可用：`curl https://你的域名/api/yggdrasil` 应返回 JSON meta
 
 ## 3. 邮件（SMTP）

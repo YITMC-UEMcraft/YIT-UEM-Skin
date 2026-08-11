@@ -177,6 +177,11 @@ php artisan options:cache
 ```
 
 > 公告里的认证服务器地址会自动使用 `.env` 中的 `APP_URL`，无需手动修改。
+创建超级管理员（把邮箱和密码换成实际值）：
+
+```bash
+php scripts/create-admin.php 你的邮箱 你的密码
+```
 
 ### 6. 目录权限
 
