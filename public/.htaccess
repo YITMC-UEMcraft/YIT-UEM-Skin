@@ -11,6 +11,7 @@
     # RewriteBase /
 
     # Black list protected files
+    RewriteCond %{REQUEST_URI} !^/\.well-known
     RewriteRule (^\.|/\.) - [F]
     RewriteRule ^storage/.* - [F]
 

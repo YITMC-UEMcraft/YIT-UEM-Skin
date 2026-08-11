@@ -120,3 +120,29 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
 - `.env`（含数据库密码、APP_KEY、邮件密码）
 
 恢复顺序：代码 → `.env` → 数据库 → `storage/textures` → `php artisan config:cache`。
+
+## 9. HTTPS 证书（Let's Encrypt，国内服务器注意）
+
+前提：域名已解析到服务器（A 记录 → 服务器公网 IP），且腾讯云/阿里云**安全组已放行 443 端口**。
+
+国内云服务器（如腾讯云）常见问题：Let's Encrypt 的 HTTP-01 校验请求会被腾讯云边缘拦截（返回 DNSPod 拦截页），导致 `certbot --apache` 反复失败。此时改用 **DNS-01 校验**（通过 TXT 记录验证，完全不依赖 HTTP）：
+
+```bash
+# 1. 在服务器上运行，它会打印两个 TXT 校验值并等待回车
+sudo certbot certonly --manual --preferred-challenges dns-01 \
+  -d skin.uemcraft.cn -d skin.yitmc.cn \
+  --agree-tos --register-unsafely-without-email --cert-name skin-multi
+
+# 2. 到两个域名的 DNS 控制台分别添加 TXT 记录（主机记录填 _acme-challenge.skin，不要填完整域名）
+# 3. 确认 TXT 在全球生效后，回车继续
+# 4. 把证书装进 Apache：
+sudo certbot --apache install --cert-name skin-multi -d skin.uemcraft.cn -d skin.yitmc.cn
+```
+
+注意事项：
+
+- 如果 HTTP-01 方式需要保留，必须确保 `public/.htaccess` 已加入 `.well-known` 例外（仓库已内置），否则挑战路径会被 403 拦截。
+- 签发后把 `.env` 的 `APP_URL` 与 `PLUGINS_URL` 改为 `https://skin.uemcraft.cn`，然后依次执行：
+  `php artisan config:clear && php scripts/init-site.php && php artisan config:cache && php artisan options:cache`
+- **续期**：手动 DNS-01 签发的证书不会自动续期，有效期 90 天。到期前按同样流程重跑一次即可（证书目录不变，`certbot renew` 配合手动 TXT 记录）。
+- 多域名共用同一证书时，`ServerAlias` 里所有域名都要在签发命令的 `-d` 参数里列出。
