@@ -68,6 +68,18 @@ class UemQrService extends BaseAuthService
     }
 
     /**
+     * 获取二维码图片二进制（带会话 cookie，供本站代理给浏览器）。
+     */
+    public function image(string $cookieFile, string $uuid): string
+    {
+        return $this->httpGet(
+            self::BASE_URL . '/qrCode/getCode?uuid=' . rawurlencode($uuid),
+            [],
+            $cookieFile
+        );
+    }
+
+    /**
      * 状态为已确认后，提交 qrLogin 表单完成登录。
      */
     public function complete(string $cookieFile, string $uuid): bool

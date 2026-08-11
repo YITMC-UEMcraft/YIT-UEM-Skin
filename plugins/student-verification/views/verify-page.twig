@@ -237,7 +237,7 @@
           btn.innerHTML = '<i class="fas fa-qrcode mr-1"></i>{{ trans("StudentVerification::student-verification.uem_qr_btn") }}';
           return;
         }
-        document.getElementById('uem-qr-img').src = data.image;
+        document.getElementById('uem-qr-img').src = '{{ url("student-verification/uem/qr/image") }}?v=' + Date.now();
         document.getElementById('uem-qr-wrap').classList.remove('d-none');
         document.getElementById('uem-qr-status').innerHTML =
           '<div class="text-muted">{{ trans("StudentVerification::student-verification.uem_qr_waiting") }}</div>';

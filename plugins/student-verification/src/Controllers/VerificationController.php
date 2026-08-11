@@ -309,6 +309,32 @@ class VerificationController extends Controller
     }
 
     /**
+     * UEM：代理二维码图片（学校服务器拒绝带外部 Referer 的请求）。
+     */
+    public function uemQrImage(Request $request)
+    {
+        $qr = session('uem_qr', []);
+        if (empty($qr['jar']) || empty($qr['uuid']) || !is_file($qr['jar'])) {
+            abort(404, '二维码会话不存在');
+        }
+
+        try {
+            $bytes = $this->uemQr->image($qr['jar'], $qr['uuid']);
+        } catch (\Exception $e) {
+            abort(502, '二维码图片获取失败');
+        }
+
+        if ($bytes === '') {
+            abort(502, '二维码图片获取失败');
+        }
+
+        return response($bytes, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'no-store',
+        ]);
+    }
+
+    /**
      * 检查（学校 + 学号）是否已被其他账号验证，避免两校学号撞号。
      */
     private function studentIdTaken(string $school, string $studentId, int $exceptUid): bool
