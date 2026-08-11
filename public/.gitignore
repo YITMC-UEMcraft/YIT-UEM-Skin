@@ -1,5 +1,1 @@
-app/*
-!app/bg
-!app/bg/*
-!app/logo-home.png
-!app/favicon.png
+app/*.map

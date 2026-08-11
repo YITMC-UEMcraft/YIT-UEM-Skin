@@ -14,21 +14,28 @@
 
 1. 拉取代码：`git clone <你的仓库> /var/www/bss && cd /var/www/bss`
 2. 安装依赖：`composer install --no-dev --optimize-autoloader`
-3. 配置环境：
+3. 前端资源：`public/app/` 下的编译产物**已随仓库提交**，无需构建。仅当修改过 `resources/assets/` 前端源码时才需要重建：
+
+   ```bash
+   npm install --legacy-peer-deps --ignore-scripts
+   npm run build
+   ```
+
+4. 配置环境：
    - `cp .env.example .env`
    - `php artisan key:generate`
    - 修改 `APP_URL` 为正式域名（如 `https://skin.example.com`）
    - 数据库：SQLite 可直接用；生产建议 MySQL：
      - `DB_CONNECTION=mysql`、`DB_HOST`、`DB_PORT`、`DB_DATABASE`、`DB_USERNAME`、`DB_PASSWORD`
-4. 初始化：`php artisan migrate --force`
-5. 权限：`chown -R www-data:www-data storage bootstrap/cache plugins/yggdrasil-api`
+5. 初始化：`php artisan migrate --force`
+6. 权限：`chown -R www-data:www-data storage bootstrap/cache plugins/yggdrasil-api`
    - 注意：`plugins/yggdrasil-api` 需要可写，插件自动更新要用
-6. Nginx：复制 `deploy/nginx.conf.example` 到 `/etc/nginx/sites-available/`，改域名与证书路径后启用
-7. HTTPS：`certbot --nginx -d skin.example.com`
-8. 性能：`php artisan config:cache && php artisan route:cache && php artisan view:cache`
-9. 一键初始化站点配置（站点名称/公告/插件）：运行 `php scripts/init-site.php`，再 `php artisan options:cache`
-10. 创建超级管理员：运行 `php scripts/create-admin.php 你的邮箱 你的密码`
-9. 确认 Yggdrasil API 可用：`curl https://你的域名/api/yggdrasil` 应返回 JSON meta
+7. Nginx：复制 `deploy/nginx.conf.example` 到 `/etc/nginx/sites-available/`，改域名与证书路径后启用
+8. HTTPS：`certbot --nginx -d skin.example.com`
+9. 性能：`php artisan config:cache && php artisan route:cache && php artisan view:cache`
+10. 一键初始化站点配置（站点名称/公告/插件）：运行 `php scripts/init-site.php`，再 `php artisan options:cache`
+11. 创建超级管理员：运行 `php scripts/create-admin.php 你的邮箱 你的密码`
+12. 确认 Yggdrasil API 可用：`curl https://你的域名/api/yggdrasil` 应返回 JSON meta
 
 ## 3. 邮件（SMTP）
 
@@ -72,7 +79,7 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
 ## 6. 插件安装（新部署）
 
 - `student-verification`（学生验证/邀请码）插件已包含在本仓库中，无需额外安装。
-- `yggdrasil-api` 插件**不在仓库内**（RSA 密钥不入库的安全设计），需从插件市场安装：
+- `yggdrasil-api` 插件**已包含在仓库内**（RSA 私钥不入库，由「生成密钥对」按钮写入数据库），无需再从插件市场安装：
   1. 后台 → 插件管理 → 插件市场 → 安装 `yggdrasil-api`
   2. 启用插件，按第 5 节生成密钥对
 

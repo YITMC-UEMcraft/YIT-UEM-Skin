@@ -111,6 +111,8 @@ wsl -d Ubuntu -e bash tools/sync-home-assets.php
 ## 生产部署
 
 > 详细运维手册见 [deploy/deploy-notes.md](deploy/deploy-notes.md)，以下为完整步骤。
+>
+> **快速部署**：代码就绪后，服务器上直接运行 `sudo bash deploy/deploy.sh`（自动拉代码、装依赖、迁移数据库、初始化站点、修权限），需要管理员时用 `ADMIN_EMAIL=你的邮箱 ADMIN_PASSWORD=密码 sudo bash deploy/deploy.sh`。
 
 ### 1. 环境要求
 
@@ -125,6 +127,13 @@ wsl -d Ubuntu -e bash tools/sync-home-assets.php
 git clone <你的仓库地址> /var/www/bss
 cd /var/www/bss
 composer install --no-dev --optimize-autoloader
+```
+
+> 编译好的前端资源（`public/app/` 下的 JS/CSS/字体等）**已随仓库一起提交**，`git pull` 后可直接使用。仅当修改过前端源码（`resources/assets/`）时才需要重新构建：
+
+```bash
+npm install --legacy-peer-deps --ignore-scripts
+npm run build
 ```
 
 ### 3. 配置环境
