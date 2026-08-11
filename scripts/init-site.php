@@ -6,9 +6,9 @@
  * 用法：php scripts/init-site.php
  *
  * 会设置：站点名称、描述、公告（HMCL/PCL 教程，认证地址自动取 .env 的 APP_URL）、
- * favicon、首页背景、启用 student-verification 插件。
+ * favicon、首页背景、启用 student-verification 与 yggdrasil-api 插件。
  *
- * 运行后仍需手动：安装 yggdrasil-api 插件并生成密钥、创建管理员账号。
+ * 运行后仍需手动：生成 Yggdrasil 密钥对、创建管理员账号。
  */
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -50,6 +50,7 @@ option([
     'home_pic_url'          => 'app/bg/1.webp',
     'plugins_enabled'       => json_encode([
         ['name' => 'student-verification', 'version' => '1.0.0'],
+        ['name' => 'yggdrasil-api', 'version' => '5.2.1'],
     ], JSON_UNESCAPED_UNICODE),
     'copyright_text'        => '<b>Copyright &copy; 2026 <a href="{site_url}">{site_name}</a>.</b> All rights reserved. <a href="/privacy">隐私协议</a>',
 ]);
@@ -57,9 +58,9 @@ option([
 echo "✓ 站点初始化完成" . PHP_EOL;
 echo "  站点名称：{$siteName}" . PHP_EOL;
 echo "  认证服务器地址：{$apiRoot}" . PHP_EOL;
-echo "  已启用插件：student-verification" . PHP_EOL;
+echo "  已启用插件：student-verification、yggdrasil-api" . PHP_EOL;
 echo PHP_EOL;
 echo "请继续手动完成：" . PHP_EOL;
-echo "1. 后台 → 插件管理 → 安装并启用 yggdrasil-api，在配置页点击「生成密钥对」" . PHP_EOL;
+echo "1. 后台 → 插件管理 → Yggdrasil API → 配置 → 点击「生成密钥对」（换机/新部署必须）" . PHP_EOL;
 echo "2. 创建管理员账号，或把已有账号 permission 设为 2（超级管理员）" . PHP_EOL;
 echo "3. 刷新配置缓存：php artisan options:cache" . PHP_EOL;
