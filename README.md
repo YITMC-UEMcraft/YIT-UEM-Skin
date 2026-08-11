@@ -129,7 +129,7 @@ cd /var/www/bss
 composer install --no-dev --optimize-autoloader
 ```
 
-> 编译好的前端资源（`public/app/` 下的 JS/CSS/字体等）**已随仓库一起提交**，`git pull` 后可直接使用。仅当修改过前端源码（`resources/assets/`）时才需要重新构建：
+> 编译好的前端资源（`public/app/` 与 `resources/views/assets/` 下的模板）**已随仓库一起提交**，`git pull` 后可直接使用。仅当修改过前端源码（`resources/assets/`）时才需要重新构建，且构建产物会同时写入这两处，**两者都要提交**：
 
 ```bash
 npm install --legacy-peer-deps --ignore-scripts

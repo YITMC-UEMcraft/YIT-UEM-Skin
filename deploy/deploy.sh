@@ -40,9 +40,13 @@ fi
 # ---------- 1. PHP 依赖 ----------
 if command -v composer >/dev/null 2>&1; then
   say "安装 PHP 依赖..."
-  composer install --no-dev --optimize-autoloader --no-interaction
+  composer install --no-dev --optimize-autoloader --no-interaction || warn "composer install 失败（多为网络问题）；若 vendor/ 已存在可继续"
 else
   warn "未找到 composer，跳过依赖安装"
+fi
+
+if [ ! -f vendor/autoload.php ]; then
+  die "缺少 vendor/autoload.php，依赖未就绪"
 fi
 
 # ---------- 2. .env ----------
