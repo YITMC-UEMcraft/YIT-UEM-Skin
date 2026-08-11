@@ -146,3 +146,20 @@ sudo certbot --apache install --cert-name skin-multi -d skin.uemcraft.cn -d skin
   `php artisan config:clear && php scripts/init-site.php && php artisan config:cache && php artisan options:cache`
 - **续期**：手动 DNS-01 签发的证书不会自动续期，有效期 90 天。到期前按同样流程重跑一次即可（证书目录不变，`certbot renew` 配合手动 TXT 记录）。
 - 多域名共用同一证书时，`ServerAlias` 里所有域名都要在签发命令的 `-d` 参数里列出。
+
+## 10. 性能优化（页面切换卡顿必做）
+
+症状：页面切换/首次加载明显卡顿。原因通常是：前端资源未压缩（CSS 1.35MB）、无 HTTP/2（页面有 40+ 个 JS/CSS 文件）、静态资源无缓存头（每次导航都重新下载）。
+
+一键启用（Apache）：
+
+```bash
+sudo cp deploy/apache-perf.conf.example /etc/apache2/conf-available/skin-perf.conf
+sudo a2enmod http2
+sudo a2enconf skin-perf
+sudo apache2ctl configtest && sudo systemctl restart apache2
+```
+
+效果：gzip 压缩（总资源约 7MB → 2MB）、HTTP/2 多路复用、带哈希的构建产物浏览器缓存一年。
+
+> 注意：改背景/logo 素材后，图片缓存最长 1 天生效；改了前端源码重新构建后文件名哈希会变，缓存自动失效。
