@@ -26,6 +26,7 @@
 6. Nginx：复制 `deploy/nginx.conf.example` 到 `/etc/nginx/sites-available/`，改域名与证书路径后启用
 7. HTTPS：`certbot --nginx -d skin.example.com`
 8. 性能：`php artisan config:cache && php artisan route:cache && php artisan view:cache`
+9. 一键初始化站点配置（站点名称/公告/插件）：运行 `php scripts/init-site.php`，再 `php artisan options:cache`
 9. 确认 Yggdrasil API 可用：`curl https://你的域名/api/yggdrasil` 应返回 JSON meta
 
 ## 3. 邮件（SMTP）

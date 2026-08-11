@@ -167,7 +167,18 @@ FLUSH PRIVILEGES;
 php artisan migrate --force
 ```
 
-### 5. 目录权限
+### 5. 初始化站点配置（关键）
+
+新环境数据库是空的，部署后必须运行一次一键初始化脚本，它会设置站点名称、中文描述、公告（HMCL/PCL 教程）、favicon、首页背景，并启用 `student-verification` 插件：
+
+```bash
+php scripts/init-site.php
+php artisan options:cache
+```
+
+> 公告里的认证服务器地址会自动使用 `.env` 中的 `APP_URL`，无需手动修改。
+
+### 6. 目录权限
 
 ```bash
 chown -R www-data:www-data /var/www/bss
@@ -176,7 +187,7 @@ chmod -R 775 /var/www/bss/storage /var/www/bss/bootstrap/cache
 
 > `plugins/yggdrasil-api` 目录需要 Web 运行用户可写（插件自动更新要用）。
 
-### 6. Nginx + PHP-FPM
+### 7. Nginx + PHP-FPM
 
 - PHP-FPM 池配置参考 `deploy/php-fpm-pool.example.conf`，放入 `/etc/php/8.3/fpm/pool.d/bss.conf`
 - Nginx 站点配置参考 `deploy/nginx.conf.example`，改好域名与证书路径后启用并重载：
@@ -195,7 +206,7 @@ nginx -t && systemctl reload nginx
 - 必须配置 `Access-Control-Allow-Origin: *`（MUA Union 要求）
 - 隐藏 `.env` 等敏感文件
 
-### 7. HTTPS
+### 8. HTTPS
 
 ```bash
 apt install certbot python3-certbot-nginx
@@ -204,7 +215,7 @@ certbot --nginx -d skin.example.com
 
 Union 要求成员皮肤站必须启用 HTTPS。
 
-### 8. SMTP 邮件
+### 9. SMTP 邮件
 
 开发环境可用 `MAIL_MAILER=log`（邮件写入 `storage/logs/`，找回密码功能链路可用）。
 
@@ -223,7 +234,7 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
 
 修改 `.env` 后需重建配置缓存：`php artisan config:cache`。
 
-### 9. 缓存与优化
+### 10. 缓存与优化
 
 ```bash
 php artisan config:cache
@@ -232,14 +243,14 @@ php artisan view:cache
 php artisan options:cache
 ```
 
-### 10. 插件与 Yggdrasil 密钥
+### 11. 插件与 Yggdrasil 密钥
 
 - `student-verification` 插件已包含在本仓库中
 - `yggdrasil-api` 插件需从后台「插件管理 → 插件市场」安装并启用
 - RSA 私钥存放在数据库选项 `ygg_private_key` 中（不入库）。新部署后到「插件配置 → Yggdrasil API」点击「生成密钥对」
 - 验证 Yggdrasil API：`curl https://你的域名/api/yggdrasil` 应返回 JSON meta
 
-### 11. 上线后检查清单
+### 12. 上线后检查清单
 
 - [ ] 后台 → 站点设置：站点名称、公告（含 HMCL/PCL 认证服务器地址）、首页背景/logo
 - [ ] 公告里的认证服务器地址改为 `https://你的域名/api/yggdrasil`
