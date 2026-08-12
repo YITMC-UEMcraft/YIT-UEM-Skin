@@ -79,9 +79,18 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
 ## 6. 插件安装（新部署）
 
 - `student-verification`（学生验证/邀请码）插件已包含在本仓库中，无需额外安装。
-- `yggdrasil-api` 插件**已包含在仓库内**（RSA 私钥不入库，由「生成密钥对」按钮写入数据库），无需再从插件市场安装：
-  1. 后台 → 插件管理 → 插件市场 → 安装 `yggdrasil-api`
-  2. 启用插件，按第 5 节生成密钥对
+- Yggdrasil 认证：使用 **Yggdrasil Connect（MUA Union 版，含 Union 支持）**，插件包不在仓库内（从 MUA 获取 `yggdrasil-connect.zip`）：
+  1. 上传/解压到 `plugins/yggdrasil-connect/`（zip 内目录名即 `yggdrasil-connect`）；
+  2. 修改数据库选项 `plugins_enabled`：**停用旧 `yggdrasil-api`**（两者冲突），加入 `{"name":"yggdrasil-connect","version":"6.1.0-0.3.2"}`；
+  3. 刷新选项缓存：`php artisan options:cache`；
+  4. 创建 Passport 个人访问客户端（交互式命令需 `echo yes |` 应答）：
+     `echo yes | php artisan yggc:create-personal-access-client`
+     把输出的 `Client ID` 写入 `.env`：`PASSPORT_PERSONAL_ACCESS_CLIENT_ID=<ID>`，然后 `php artisan config:cache`；
+  5. 旧版迁移：`echo yes | php artisan yggc:fix-uuid-table`（先备份 `uuid` 表！）；
+  6. 补齐 Union 选项默认值（否则 `/api/yggdrasil` 会 500）：
+     `INSERT INTO options (option_name, option_value) VALUES ('union_server_list','[]'),('union_server_list_version','0'),('union_api_root',''),('union_private_key_version','0');`
+  7. **重要**：该插件多处用 `env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID')` 直接读环境变量，在 `config:cache` 后取不到值，会报 `Invalid Personal Access Client ID`。需把 `src/Middleware/CheckIfAuthServerDisabled.php`、`src/Controllers/ConfigController.php`、`src/Models/AccessToken.php` 中的 `env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID')` 替换为 `config('passport.personal_access_client.id')`，然后重启 PHP-FPM；
+  8. RSA 密钥沿用数据库选项 `ygg_private_key`（旧 yggdrasil-api 的 4096 位密钥可直接用），也可在插件配置页重新生成。
 
 ## 7. MUA Union 接入清单
 
