@@ -52,7 +52,7 @@ option([
         ['name' => 'student-verification', 'version' => '1.0.0'],
         ['name' => 'yggdrasil-api', 'version' => '5.2.1'],
     ], JSON_UNESCAPED_UNICODE),
-    'copyright_text'        => '<b>Copyright &copy; 2026 <a href="{site_url}">{site_name}</a>.</b> All rights reserved. <a href="/privacy">隐私协议</a>',
+    'copyright_text'        => '<b>Copyright &copy; 2026 <a href="{site_url}">{site_name}</a>.</b> All rights reserved. <a href="/privacy">隐私协议</a> · <a href="https://beian.miit.gov.cn/" target="_blank" rel="nofollow">赣ICP备2026018930号</a>',
 ]);
 
 echo "✓ 站点初始化完成" . PHP_EOL;
