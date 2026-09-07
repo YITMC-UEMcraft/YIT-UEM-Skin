@@ -26,6 +26,10 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # MUA Union OAuth 授权页在无查询参数打开时会把跳转链接拼成
+    # .../oauth2/grant&backend=XXX (缺少 ?), 这里把它规范成正常的查询串
+    RewriteRule ^api/union/member/oauth2/grant&(.*)$ /api/union/member/oauth2/grant?$1 [R=302,L,NE]
+
     # Handle front controller
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
