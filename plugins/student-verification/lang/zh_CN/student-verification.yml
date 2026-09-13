@@ -19,7 +19,7 @@ verify_btn: '验证身份'
 verifying: '验证中'
 verify_required: '请先完成学生身份验证'
 verify_required_title: '需要身份验证'
-verify_required_desc: "根据联合皮肤站规则，创建角色、上传皮肤等操作需要验证在校生身份。\n请选择学校并完成验证。"
+verify_required_desc: "根据联合皮肤站规则，创建角色、上传皮肤、进入游戏等操作需要验证在校生身份。\n请选择学校并完成验证。"
 already_verified: '您已通过学生身份验证'
 verify_success: '验证通过'
 verify_failed: '验证未通过，请检查输入后重试'

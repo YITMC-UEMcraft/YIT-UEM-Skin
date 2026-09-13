@@ -73,9 +73,19 @@ return function (Plugin $plugin): void {
         });
     }
 
+    // 注册流程：允许创建初始角色（注册后再完成身份验证），其余场景仍拦截
+    resolve(Dispatcher::class)->listen('auth.registration.completed', function (User $user) {
+        session(['sv_registration_uid' => $user->uid]);
+    });
+
     // Block player creation for unverified users
     // $playerName: string, $user: User (dispatched as [$playerName, $user] in PlayerController)
     resolve(Dispatcher::class)->listen('player.adding', function (string $playerName, User $user) {
+        if (session('sv_registration_uid') === $user->uid) {
+            session()->forget('sv_registration_uid');
+            return;
+        }
+
         $verified = StudentVerification::where('user_id', $user->uid)->value('verified');
 
         if (!$verified) {

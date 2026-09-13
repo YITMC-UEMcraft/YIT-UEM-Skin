@@ -193,6 +193,9 @@
     sidHint.textContent = sidHints[school] || '';
     var isUem = school === 'uem';
     var isExternal = school === 'external';
+    var passwordInput = document.getElementById('password-input');
+    passwordInput.required = !isUem && !isExternal;
+    passwordInput.disabled = isUem || isExternal;
     qrBox.classList.toggle('d-none', !isUem);
     yitPasswordGroup.classList.toggle('d-none', isUem || isExternal);
     externalCodeGroup.classList.toggle('d-none', !isExternal);
