@@ -290,12 +290,16 @@ php artisan options:cache
 3. 加入界面右侧显示的 MUA Union 交流群
 4. 向联系人提供：皮肤站根目录网址、站点/组织名称缩写（6 个以内大写字母，例如 `YITUEM`）
 5. 等待联系人确认对接完成
-6. 对接完成后，将 Minecraft 服务器 Yggdrasil API 改为 Union 地址：
-   - 允许全部成员：`https://skin.mualliance.ltd/api/union/yggdrasil`
-   - 白名单：`https://skin.mualliance.ltd/api/union/yggdrasil/only/{code}`
-   - 黑名单：`https://skin.mualliance.ltd/api/union/yggdrasil/excludes/{code}`
+6. 对接完成后，将 Minecraft 服务器 Yggdrasil API 改为 Union 地址（本站当前使用「允许全部成员」）：
+   - 允许全部 Union 成员（当前配置）：`https://skin.mualliance.ltd/api/union/yggdrasil`
+   - 只允许本站账号：`https://skin.mualliance.ltd/api/union/yggdrasil/only/YITUEM`
+   - 排除指定站点：`https://skin.mualliance.ltd/api/union/yggdrasil/excludes/{code}`
+
+> **说明**：使用「允许全部成员」时，本站账号仍会经过 `student-verification` 的学生身份校验，未完成验证无法登录或进服；外站账号的验证状态由对应对接站及 Union 规则负责。若要求整台服务器只允许本站认证用户登录，请改用 `/only/YITUEM`。
 
 服务端注意：确保对外域名启用 HTTPS、配置 `Access-Control-Allow-Origin: *`、校准服务器时钟、保持 `plugins/yggdrasil-api` 可写（插件更新需要）。
+
+`student-verification` 插件已对 Yggdrasil 的 `authenticate` / `refresh` / `validate` / `join` 接口做学生身份校验：未完成学生验证的账号即使邮箱已验证，也无法登录或进服。
 
 ## 备份与恢复
 

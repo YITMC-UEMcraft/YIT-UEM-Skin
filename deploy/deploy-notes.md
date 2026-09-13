@@ -92,6 +92,27 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
   7. **重要**：该插件多处用 `env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID')` 直接读环境变量，在 `config:cache` 后取不到值，会报 `Invalid Personal Access Client ID`。需把 `src/Middleware/CheckIfAuthServerDisabled.php`、`src/Controllers/ConfigController.php`、`src/Models/AccessToken.php` 中的 `env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID')` 替换为 `config('passport.personal_access_client.id')`，然后重启 PHP-FPM；
   8. RSA 密钥沿用数据库选项 `ygg_private_key`（旧 yggdrasil-api 的 4096 位密钥可直接用），也可在插件配置页重新生成。
 
+### 已知坑（2026-08-12 生产环境修复，重装必看）
+
+- **`/union` 角色绑定页 500**：`src/Controllers/UnionProfileController.php` 中 `class_exists('Promise::Utils')` 判断永远为 `false`，而 guzzlehttp/promises 2.x 已移除 `Promise\unwrap()` 函数，导致打开页面直接 `Call to undefined function GuzzleHttp\Promise\unwrap()`。
+  修复：把该判断改为 `class_exists(\GuzzleHttp\Promise\Utils::class)`（生产机已修，需同步到新装的插件包）。
+- **改数据库选项后必须刷新缓存**：站点实时读取 `storage/options.php`，对 `options` 表的手工/脚本修改不会立即生效。
+  修改后执行 `php artisan options:cache`，否则会出现「数据库里明明配了却不生效」。
+- **`union_api_root` 必须填写 Union 地址**：`https://skin.mualliance.ltd/api/union`。为空时 MUA 每小时的入站回调
+  `POST /api/union/member/{sync,updatelist,updateprivatekey}` 会 500（UnionHostVerify 用空 URL 请求），
+  且玩家添加/改名/删除时的同步事件也会 500（`profile/xxx` 被解析成主机名）。
+- **`union_enable_oauth2`、`union_oauth2_sig_private_key`、`union_oauth2_sig_public_key`、`union_member_key` 缺失时**：
+  Union OAuth2 接口直接返回 `Union OAuth2 is not enabled`。补齐后再 `php artisan options:cache`。
+  签名密钥可用插件自带函数生成：引导 Laravel 后调用 `ygg_generate_rsa_keys()` 并写入
+  `union_oauth2_sig_private_key` / `union_oauth2_sig_public_key`。
+- `union_member_key` 需等 MUA 确认对接后由管理员填入（后台 → Yggdrasil Connect → Union 相关配置），
+  为空时所有带 `X-Union-Member-Key` 的出站请求会被 MUA 以 401 拒绝（不再 500，但同步不会完成）。
+- **登录/启动器认证 500（`The requested scope is invalid, unknown, or malformed`）**：插件签发令牌用的是 Laravel Passport 的 personal_access 授权，scope（`Yggdrasil.PlayerProfiles.Select` 等）必须在 `scopes` 表和 Passport 注册。若插件不是通过后台「启用」流程安装（比如手动改 `plugins_enabled`），`PluginWasEnabled` 不会触发，`scopes` 表为空，且 BSS 用 `Cache::rememberForever('scopes')` 缓存了空数组，导致**每个账号登录都 500**。
+  修复：
+  1. 向 `scopes` 表插入插件所需 scope：`openid`、`profile`、`email`、`offline_access`、`Yggdrasil.PlayerProfiles.Read`、`Yggdrasil.PlayerProfiles.Select`、`Yggdrasil.Server.Join`；
+  2. 清除缓存：`php artisan cache:clear`（或 `Cache::forget('scopes')`）；
+  3. 重启 PHP-FPM。验证：任意账号执行登录，应能拿到 accessToken 而非 500。
+
 ## 7. MUA Union 接入清单
 
 前置条件（必须全部满足）：
@@ -108,10 +129,13 @@ MAIL_FROM_NAME="YIT & UEM 联合皮肤站"
 3. 加入界面右侧显示的 MUA Union 交流群
 4. 告知联系人：皮肤站根目录网址 + 组织缩写（6 个以内大写字母，建议 `YITUEM`）
 5. 等待联系人确认对接完成
-6. 对接完成后，把 Minecraft 服务器的 Yggdrasil API Root 改为 Union 地址：
-   - 允许全部成员：`https://skin.mualliance.ltd/api/union/yggdrasil`
-   - 白名单：`https://skin.mualliance.ltd/api/union/yggdrasil/only/{code}`
-   - 黑名单：`https://skin.mualliance.ltd/api/union/yggdrasil/excludes/{code}`
+6. 拿到 `union_member_key` 后：填入后台 → Yggdrasil Connect → Union 相关配置，执行 `php artisan options:cache`（或直接写库后刷新缓存），然后在 Union 配置页依次点「更新服务器列表 / 更新私钥 / 同步」，确认 `union_server_list`、`union_server_list_version`、`union_private_key_version` 均已更新。
+7. 对接完成后，把 Minecraft 服务器的 Yggdrasil API Root 改为 Union 地址（本站当前使用「允许全部成员」）：
+   - 允许全部 Union 成员（当前配置）：`https://skin.mualliance.ltd/api/union/yggdrasil`
+   - 只允许本站账号：`https://skin.mualliance.ltd/api/union/yggdrasil/only/YITUEM`
+   - 排除指定站点：`https://skin.mualliance.ltd/api/union/yggdrasil/excludes/{code}`
+
+   > 说明：根地址下本站账号仍受 `student-verification` 学生身份校验约束（未验证无法进服）；外站账号的验证状态由对应对接站及 Union 规则负责。若要整台服务器只允许本站认证用户，改用 `/only/YITUEM`。
 
 常见问题：
 
@@ -155,6 +179,14 @@ sudo certbot --apache install --cert-name skin-multi -d skin.uemcraft.cn -d skin
   `php artisan config:clear && php scripts/init-site.php && php artisan config:cache && php artisan options:cache`
 - **续期**：手动 DNS-01 签发的证书不会自动续期，有效期 90 天。到期前按同样流程重跑一次即可（证书目录不变，`certbot renew` 配合手动 TXT 记录）。
 - 多域名共用同一证书时，`ServerAlias` 里所有域名都要在签发命令的 `-d` 参数里列出。
+
+### 备案（腾讯云边缘拦截）
+
+- 两个域名均已备案：
+  - `skin.uemcraft.cn` → 赣ICP备2026018930号
+  - `skin.yitmc.cn` → 冀ICP备2026031605号（2026-08-17 通过）
+- 页脚备案号存放在数据库选项 `copyright_text`（`scripts/init-site.php` 有同款默认值），两个备案号均链接到 https://beian.miit.gov.cn/。
+- 备案生效前腾讯云边缘会拦截未备案域名的 HTTP 访问（表现为部分网络打不开、302 跳转）；备案通过后边缘缓存通常 1~2 天内自动放行，若仍被拦截可到腾讯云控制台确认备案状态。
 
 ## 10. 性能优化（页面切换卡顿必做）
 
