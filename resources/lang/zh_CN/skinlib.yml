@@ -10,6 +10,7 @@ upload:
   name-rule: 材质名称应该小于 32 个字节且不能包含奇怪的符号
   name-rule-regexp: 本站已应用特殊的名称规则：:regexp
   private-score-notice: 私密材质将会消耗更多的积分：每 KB 存储空间 :score 积分
+  not-png: 文件不是有效的 PNG 图片（检测到实际格式：:format）。请先用图片工具另存为 PNG 再上传。
   invalid-size: 不是有效的 :type 文件（宽 :width，高 :height）
   invalid-hd-skin: 不是有效的高清皮肤（宽和高不是 32 的整数倍）
   too-wide: 材质过宽（:widthpx），本站允许的最大宽度为 :maxWidthpx

@@ -202,7 +202,18 @@ class SkinlibController extends Controller
                 'required',
                 option('texture_name_regexp') ? 'regex:'.option('texture_name_regexp') : 'string',
             ],
-            'file' => 'required|mimes:png|max:'.option('max_upload_file_size'),
+                        'file' => [
+                'required',
+                'max:'.option('max_upload_file_size'),
+                function ($attribute, $value, $fail) {
+                    if ($value instanceof UploadedFile && $value->isValid() && $value->getMimeType() !== 'image/png') {
+                        $fail(trans('skinlib.upload.not-png', [
+                            'format' => $value->getMimeType() ?: 'unknown',
+                        ]));
+                    }
+                },
+                'mimes:png',
+            ],
             'type' => ['required', Rule::in(['steve', 'alex', 'cape'])],
             'public' => 'required|boolean',
         ]);
