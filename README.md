@@ -324,3 +324,4 @@ php artisan options:cache
 - [Blessing Skin Server](https://github.com/bs-community/blessing-skin-server)（MIT）
 - [MUA Union 联合认证](https://docs.mualliance.cn/zh/dev/union/auth)
 - 燕京理工学院 MC 玩家创作协会、应急管理大学 Minecraft 同好会
+- 站点开发与维护：[@Mr-ETsir](https://github.com/Mr-ETsir)
