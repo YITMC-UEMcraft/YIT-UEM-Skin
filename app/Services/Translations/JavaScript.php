@@ -33,10 +33,26 @@ class JavaScript
         $sourceFiles = $plugins
             ->map(fn (Plugin $plugin) => $plugin->getPath()."/lang/$locale/front-end.yml")
             ->filter(fn ($path) => $this->filesystem->exists($path));
-        $sourceFiles->push(resource_path("lang/$locale/front-end.yml"));
-        $sourceModified = $sourceFiles->max(fn ($path) => $this->filesystem->lastModified($path));
+
+        $coreFile = resource_path("lang/$locale/front-end.yml");
+        if ($this->filesystem->exists($coreFile)) {
+            $sourceFiles->push($coreFile);
+        }
 
         $compiled = public_path("lang/$locale.js");
+
+        // bs-community/blessing-skin-server#684: an illegal locale has no
+        // language files, and calling lastModified() on them used to throw
+        // and 500 every page render. Emit an empty map instead.
+        if ($sourceFiles->isEmpty()) {
+            $this->filesystem->put($compiled, 'blessing.i18n = {};');
+            $this->cache->forget($this->prefix.$locale);
+
+            return url()->asset("lang/$locale.js");
+        }
+
+        $sourceModified = $sourceFiles->max(fn ($path) => $this->filesystem->lastModified($path));
+
         $compiledModified = (int) $this->cache->get($this->prefix.$locale, 0);
 
         if ($sourceModified > $compiledModified || !$this->filesystem->exists($compiled)) {
