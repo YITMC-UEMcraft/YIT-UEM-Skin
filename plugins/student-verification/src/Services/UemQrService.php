@@ -11,10 +11,17 @@ use Illuminate\Support\Facades\Log;
  *   - /qrCode/getToken      创建二维码会话，返回令牌
  *   - /qrCode/getCode       按令牌返回二维码图片
  *   - /qrCode/getStatus.htl 轮询状态：0=未扫 1=已确认 2=已扫待确认 3=失效
+ *     （2026-10 起未扫码状态对新会话可能返回空串，按未扫处理，学校自家页面同样如此）
  *   - 状态为 1 后提交 qrLogin 表单完成登录，会话即由本服务持有
  *
  * 用户用学校 App（今日校园/企业微信/钉钉）扫码并在手机上确认，
  * 全程不需要密码，也不需要 CAS 服务登记。
+ *
+ * 2026-10-11 修正：学校升级后校验二维码令牌与登录 WebFlow 会话的绑定顺序，
+ * 必须复刻学校登录页的时序——先 GET /login 建立会话，再 getToken，
+ * 确认后用同一个 execution 提交（与学校 qrcode.js 行为一致）。
+ * 登录成功后学校跳转新个人中心（经 my1.ncist.edu.cn 中转），成功判定以
+ * cookie jar 中的 CASTGC 为权威信号。
  */
 class UemQrService extends BaseAuthService
 {
