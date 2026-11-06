@@ -135,6 +135,7 @@ class VerificationController extends Controller
             'jar' => $jar,
             'uuid' => $result['uuid'],
             'student_id' => $studentId,
+            'execution' => $result['execution'] ?? '',
         ]]);
 
         return response()->json([
@@ -190,15 +191,17 @@ class VerificationController extends Controller
         // 1 = 已在手机上确认，完成登录
         $completed = false;
         try {
-            $completed = $this->uemQr->complete($jar, $uuid);
+            $completed = $this->uemQr->complete($jar, $uuid, $qr['execution'] ?? '');
             $identity = $completed ? $this->uemQr->fetchIdentity($jar) : ['student_id' => '', 'student_name' => ''];
         } catch (\Exception $e) {
+            \Log::warning('uem-qr: complete threw exception', ['error' => $e->getMessage()]);
             $identity = ['student_id' => '', 'student_name' => ''];
         }
 
         $pendingId = $qr['student_id'];
 
         if (!$completed) {
+            \Log::warning('uem-qr: complete failed', ['uid' => auth()->user()->uid, 'pending_id' => $pendingId]);
             @unlink($jar);
             session()->forget('uem_qr');
 
@@ -207,6 +210,11 @@ class VerificationController extends Controller
 
         // 若能解析出会话账号，必须与填写的学号一致
         if ($identity['student_id'] !== '' && strcasecmp($identity['student_id'], $pendingId) !== 0) {
+            \Log::warning('uem-qr: identity mismatch', [
+                'uid' => auth()->user()->uid,
+                'pending_id' => $pendingId,
+                'session_id_len' => strlen($identity['student_id']),
+            ]);
             @unlink($jar);
             session()->forget('uem_qr');
 
@@ -230,6 +238,8 @@ class VerificationController extends Controller
                 'verified_at' => now(),
             ]
         );
+
+        \Log::info('uem-qr: verification success', ['uid' => auth()->user()->uid, 'pending_id' => $pendingId]);
 
         @unlink($jar);
         session()->forget('uem_qr');

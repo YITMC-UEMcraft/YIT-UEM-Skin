@@ -2,6 +2,8 @@
 
 namespace StudentVerification\Services;
 
+use Illuminate\Support\Facades\Log;
+
 /**
  * 应急管理大学统一认证扫码登录服务。
  *
@@ -35,8 +37,16 @@ class UemQrService extends BaseAuthService
         ];
     }
 
+    /**
+     * 创建扫码会话。必须先加载登录页建立 WebFlow 会话（学校 2026-10 升级后
+     * 校验二维码令牌与登录会话的绑定顺序），再取令牌，并记录当时的 execution，
+     * complete() 需用同一个 execution 提交。
+     */
     public function create(string $cookieFile): array
     {
+        $loginPage = $this->httpGet(self::BASE_URL . '/login', [], $cookieFile);
+        $execution = $this->extractField($loginPage, 'execution');
+
         $token = trim($this->httpGet(
             self::BASE_URL . '/qrCode/getToken?ts=' . (int) (microtime(true) * 1000),
             [],
@@ -44,13 +54,14 @@ class UemQrService extends BaseAuthService
         ));
 
         if ($token === '') {
-            return ['success' => false, 'uuid' => '', 'image' => ''];
+            return ['success' => false, 'uuid' => '', 'image' => '', 'execution' => ''];
         }
 
         return [
             'success' => true,
             'uuid' => $token,
             'image' => self::BASE_URL . '/qrCode/getCode?uuid=' . rawurlencode($token),
+            'execution' => $execution,
         ];
     }
 
@@ -59,12 +70,22 @@ class UemQrService extends BaseAuthService
      */
     public function status(string $cookieFile, string $uuid): string
     {
-        return trim($this->httpGet(
+        $raw = $this->httpGet(
             self::BASE_URL . '/qrCode/getStatus.htl?ts=' . (int) (microtime(true) * 1000)
                 . '&uuid=' . rawurlencode($uuid),
             [],
             $cookieFile
-        ));
+        );
+        $status = trim($raw);
+
+        if (!in_array($status, ['0', '1', '2', '3'], true)) {
+            Log::warning('uem-qr: unexpected getStatus response', [
+                'http_code' => $this->lastStatusCode,
+                'body' => mb_substr($raw, 0, 300),
+            ]);
+        }
+
+        return $status;
     }
 
     /**
@@ -81,17 +102,40 @@ class UemQrService extends BaseAuthService
 
     /**
      * 状态为已确认后，提交 qrLogin 表单完成登录。
+     * $execution 必须是 create() 时登录页返回的那个（与扫码会话同一 WebFlow 流程）；
+     * 旧会话没有存 execution 时回退为现取登录页。
      */
-    public function complete(string $cookieFile, string $uuid): bool
+    public function complete(string $cookieFile, string $uuid, string $execution = ''): bool
     {
-        // 先从登录页取 execution / lt（与扫码会话共用 cookie）
-        $loginPage = $this->httpGet(self::BASE_URL . '/login', [], $cookieFile);
-        $execution = $this->extractField($loginPage, 'execution');
-        $lt = $this->extractField($loginPage, 'lt');
+        // 学校端偶发抖动时重试一次（2026-10-11 排查：该校 CAS 曾出现 qrLogin 500）
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $ok = $this->submitQrLogin($cookieFile, $uuid, $execution, $attempt);
+            if ($ok) {
+                return true;
+            }
+
+            if ($attempt === 1) {
+                sleep(1);
+            }
+        }
+
+        return false;
+    }
+
+    private function submitQrLogin(string $cookieFile, string $uuid, string $execution, int $attempt): bool
+    {
+        if ($execution === '') {
+            // 回退：从登录页现取 execution / lt
+            $loginPage = $this->httpGet(self::BASE_URL . '/login', [], $cookieFile);
+            $execution = $this->extractField($loginPage, 'execution');
+        }
 
         if ($execution === '') {
             $execution = 'e1s1';
         }
+
+        // 学校登录页 qrLoginForm 的 lt 即为空值
+        $lt = '';
 
         $fields = [
             'lt' => $lt,
@@ -110,12 +154,65 @@ class UemQrService extends BaseAuthService
             $cookieFile
         );
 
-        // 登录成功后应离开登录页（跳转到 index.do 等）
+        // 登录成功后应离开登录页（跳转到 index.do 等）；2026-10 起成功后会跳
+        // 新个人中心（经 my1.ncist.edu.cn 中转，URL 含 login 字样），不能再拿
+        // "离开 /login"当唯一判据，以 CASTGC cookie 为权威成功信号
         $url = $this->lastEffectiveUrl();
 
-        return $url !== null && !str_contains($url, '/login')
+        $leftLogin = $url !== null && !str_contains($url, '/login');
+        $landedPortal = $url !== null && (
+            str_contains($url, 'my1.ncist.edu.cn')
+            || str_contains($url, 'personalInfo')
+            || str_contains($url, 'personCenter')
+        );
+        $hasCastgc = $this->jarHasCastgc($cookieFile);
+
+        $ok = $leftLogin
+            || $landedPortal
+            || $hasCastgc
             || str_contains($response, 'logout')
             || str_contains($response, 'index.do');
+
+        // 诊断日志：记录学校端 qrLogin 提交的原始返回（2026-10-11 排查用）
+        Log::info('uem-qr: qrLogin submit', [
+            'attempt' => $attempt,
+            'http_code' => $this->lastStatusCode,
+            'final_url' => $url,
+            'left_login' => $leftLogin,
+            'landed_portal' => $landedPortal,
+            'has_castgc' => $hasCastgc,
+            'result' => $ok,
+            'execution' => $execution,
+            'body_len' => strlen($response),
+            'has_npe' => str_contains($response, 'NullPointerException'),
+            'body_head' => mb_substr($response, 0, 200),
+        ]);
+
+        return $ok;
+    }
+
+    /**
+     * 检查会话 cookie jar 中是否已有 CAS 登录凭证（CASTGC）。
+     * 扫码登录成功时学校会下发 TGT；失败路径不会设置。
+     */
+    private function jarHasCastgc(string $cookieFile): bool
+    {
+        if (!is_file($cookieFile)) {
+            return false;
+        }
+
+        $lines = @file($cookieFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+        foreach ($lines as $line) {
+            if ($line === '' || $line[0] === '#') {
+                continue;
+            }
+            $parts = explode("\t", $line);
+            if (count($parts) >= 7 && strcasecmp(trim($parts[5]), 'CASTGC') === 0 && trim($parts[6]) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -127,6 +224,8 @@ class UemQrService extends BaseAuthService
     {
         $pages = [
             self::BASE_URL . '/index.do',
+            // 2026-10 起扫码登录后的落地点（SPA，服务端 HTML 未必含学号，尽力解析）
+            'https://auth.ncist.edu.cn/personalInfo/personCenter/index.html',
             self::BASE_URL . '/personalCenter',
             self::BASE_URL . '/login',
         ];
@@ -135,16 +234,27 @@ class UemQrService extends BaseAuthService
             try {
                 $html = $this->httpGet($page, [], $cookieFile);
             } catch (\Exception $e) {
+                Log::info('uem-qr: identity page fetch failed', ['page' => $page, 'error' => $e->getMessage()]);
                 continue;
             }
 
             $studentId = $this->extractStudentId($html);
             $studentName = $this->extractStudentName($html);
 
+            Log::info('uem-qr: identity page parsed', [
+                'page' => $page,
+                'http_code' => $this->lastStatusCode,
+                'html_len' => strlen($html),
+                'student_id_found' => $studentId !== '',
+                'student_name_found' => $studentName !== '',
+            ]);
+
             if ($studentId !== '') {
                 return ['student_id' => $studentId, 'student_name' => $studentName];
             }
         }
+
+        Log::warning('uem-qr: identity not found on any page');
 
         return ['student_id' => '', 'student_name' => ''];
     }
