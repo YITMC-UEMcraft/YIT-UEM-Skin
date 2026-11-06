@@ -204,3 +204,23 @@ sudo apache2ctl configtest && sudo systemctl restart apache2
 效果：gzip 压缩（总资源约 7MB → 2MB）、HTTP/2 多路复用、带哈希的构建产物浏览器缓存一年。
 
 > 注意：改背景/logo 素材后，图片缓存最长 1 天生效；改了前端源码重新构建后文件名哈希会变，缓存自动失效。
+
+## 11. 用户中心「拖动至启动器」按钮失效（2026-09-29 修复）
+
+症状：用户中心「快速配置启动器」卡片里的按钮，点击不复制地址、拖到启动器也没反应。仅从备用域名（如 `skin.yitmc.cn`）访问时出现，主域名正常。
+
+原因：`.env` 里 `PLUGINS_URL=https://skin.uemcraft.cn/plugins` 使 `plugin()->assets()` 生成钉死主域名的绝对 URL，且 `Hook::addScriptFileToPage` 会给脚本加 `crossorigin="anonymous"`；Apache 对该静态文件不返回 CORS 头，于是从其他域名访问时 dnd.js 被浏览器整体拦截——点击复制与拖拽数据全靠这个脚本，一起失效。
+
+修复：`plugins/yggdrasil-connect/bootstrap.php`（约 66 行）不再用 `assets()`，改为相对路径，始终与访问域名同源：
+
+```php
+Hook::addScriptFileToPage(
+    '/plugins/yggdrasil-connect/assets/dnd.js?v='.plugin('yggdrasil-connect')->version,
+    ['user']
+);
+```
+
+注意：
+- 该插件不被 git 跟踪（`plugins/.gitignore`），是从市场 zip 手动装的——**将来重新安装/升级插件会冲掉此改动，需要重打**（修补版存于仓库 `tools/yggdrasil-connect/bootstrap.php`）。
+- 治本方案：删掉 `.env` 里的 `PLUGINS_URL`，`assets()` 会回退为跟随当前请求域名的 `url('plugins')`，所有插件资源永久同源（尚未执行，影响面大需单独验证）。
+- 修补前备份：服务器 `/tmp/bootstrap-bak-20260929.php`。
