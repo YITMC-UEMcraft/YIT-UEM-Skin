@@ -136,6 +136,7 @@ user:
     delete-player: 刪除
     add-player: 添加新角色
     texture-empty: 沒有材質
+    free-quota: 免費額度：還可免費創建 :n 個角色
   verification:
     title: 驗證您的賬戶
     message: 您必須驗證您的電子郵件地址后才能使用皮膚材質儲存服務。還沒有收到電子郵件？

@@ -22,6 +22,7 @@ return [
     'private_score_per_storage' => '10',
     'return_score' => 'true',
     'score_per_player' => '100',
+    'free_player_quota' => '5',
     'sign_after_zero' => 'false',
     'version' => '',
     'copyright_text' => '<b>Copyright &copy; 2026 <a href="{site_url}">{site_name}</a>.</b> All rights reserved. <a href="/privacy">隐私协议</a>',

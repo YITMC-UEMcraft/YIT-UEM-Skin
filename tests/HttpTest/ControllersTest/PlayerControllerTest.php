@@ -87,8 +87,11 @@ class PlayerControllerTest extends TestCase
         Event::fake();
         $filter = Fakes\Filter::fake();
 
-        // Lack of score
+        // Lack of score (beyond the free player quota)
         $user = User::factory()->create(['score' => 0]);
+        foreach (range(1, 5) as $i) {
+            Player::factory()->create(['uid' => $user->uid, 'name' => "quota_$i"]);
+        }
         $this->actingAs($user)->postJson(
             route('user.player.add'),
             ['name' => 'no_score']
@@ -130,6 +133,9 @@ class PlayerControllerTest extends TestCase
         Event::fake();
         option(['player_name_rule' => 'cjk']);
         $user = User::factory()->create();
+        foreach (range(1, 5) as $i) {
+            Player::factory()->create(['uid' => $user->uid, 'name' => "quota_$i"]);
+        }
         $score = $user->score;
         $this->actingAs($user)->postJson(route('user.player.add'), [
             'name' => '角色名',
@@ -167,6 +173,24 @@ class PlayerControllerTest extends TestCase
         );
     }
 
+    public function testAddWithinFreeQuota()
+    {
+        Event::fake();
+        Fakes\Filter::fake();
+
+        // Users within the free quota can add players even without scores.
+        $user = User::factory()->create(['score' => 0]);
+        $this->actingAs($user)->postJson(
+            route('user.player.add'),
+            ['name' => 'free_player']
+        )->assertJson([
+            'code' => 0,
+            'message' => trans('user.player.add.success', ['name' => 'free_player']),
+        ]);
+        $this->assertNotNull(Player::where('name', 'free_player')->first());
+        $this->assertEquals(0, User::find($user->uid)->score);
+    }
+
     public function testDelete()
     {
         Event::fake();
@@ -174,6 +198,10 @@ class PlayerControllerTest extends TestCase
 
         $user = User::factory()->create();
         $player = Player::factory()->create(['uid' => $user->uid]);
+        // Beyond the free quota, so that deleting the player returns scores.
+        foreach (range(1, 5) as $i) {
+            Player::factory()->create(['uid' => $user->uid, 'name' => "quota_$i"]);
+        }
         $score = $user->score;
 
         // rejected
@@ -233,6 +261,23 @@ class PlayerControllerTest extends TestCase
             $user->score,
             User::find($user->uid)->score
         );
+    }
+
+    public function testDeleteWithinFreeQuota()
+    {
+        Event::fake();
+
+        // Deleting players within the free quota never returns scores.
+        $user = User::factory()->create();
+        $player = Player::factory()->create(['uid' => $user->uid]);
+        $this->actingAs($user)
+            ->deleteJson(route('user.player.delete', ['player' => $player]))
+            ->assertJson([
+                'code' => 0,
+                'message' => trans('user.player.delete.success', ['name' => $player->name]),
+            ]);
+        $this->assertNull(Player::find($player->pid));
+        $this->assertEquals($user->score, User::find($user->uid)->score);
     }
 
     public function testRename()

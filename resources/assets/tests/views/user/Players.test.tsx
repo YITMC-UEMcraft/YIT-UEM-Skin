@@ -181,6 +181,20 @@ describe('create player', () => {
     expect(getByRole('alert')).toHaveClass('alert-danger')
   })
 
+  it('alert free quota when quota remains', async () => {
+    blessing.extra.score = 0
+    blessing.extra.free_quota = 3
+    const { getByRole, getByText, queryByText } = render(<Players />)
+    await waitFor(() => expect(fetch.get).toBeCalledTimes(1))
+
+    fireEvent.click(getByText(t('user.player.add-player')))
+
+    expect(
+      queryByText(t('user.player.free-quota', { n: 3 })),
+    ).toBeInTheDocument()
+    expect(getByRole('alert')).toHaveClass('alert-success')
+  })
+
   it('succeeded', async () => {
     fetch.post.mockResolvedValue({ code: 0, message: 'success', data: fixture })
 

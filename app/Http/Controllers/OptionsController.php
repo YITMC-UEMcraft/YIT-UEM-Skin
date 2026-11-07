@@ -96,6 +96,8 @@ class OptionsController extends Controller
 
             $form->group('score_per_player')->text('score_per_player')->addon();
 
+            $form->group('free_player_quota')->text('free_player_quota')->addon();
+
             $form->text('user_initial_score');
         })->handle();
 

@@ -138,6 +138,7 @@ user:
     delete-player: Delete
     add-player: Add new player
     texture-empty: Nothing
+    free-quota: "Free quota: you can add :n more player(s) for free"
   verification:
     title: Verify Your Account
     message: You must verify your email address before using the skin hosting service. Haven't received the email?

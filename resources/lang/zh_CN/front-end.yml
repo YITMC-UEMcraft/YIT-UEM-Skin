@@ -136,6 +136,7 @@ user:
     delete-player: 删除角色
     add-player: 添加新角色
     texture-empty: 未上传
+    free-quota: 免费额度：还可免费创建 :n 个角色
   verification:
     title: 验证你的邮箱地址
     message: 你必须验证你的邮箱才能正常使用本站的皮肤托管等功能。没有收到验证邮件？

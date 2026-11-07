@@ -54,6 +54,9 @@ rate:
   score_per_player:
     title: Players
     addon: scores = 1 player
+  free_player_quota:
+    title: Free Player Quota
+    addon: players (creatable even without enough scores)
   user_initial_score: User Initial Score
 
 report:

@@ -67,7 +67,16 @@ class PlayerController extends Controller
                 ),
                 'score' => auth()->user()->score,
                 'cost' => (int) option('score_per_player'),
+                'free_quota' => max(
+                    0,
+                    (int) option('free_player_quota') - $user->players()->count()
+                ),
             ]);
+    }
+
+    private function freePlayerQuota(): int
+    {
+        return max(0, (int) option('free_player_quota'));
     }
 
     public function list()
@@ -98,7 +107,9 @@ class PlayerController extends Controller
             return json($can->getReason(), 1);
         }
 
-        if ($user->score < (int) option('score_per_player')) {
+        // 每位用户（无论注册先后）都享有免费角色额度，额度内创建角色不消耗积分。
+        $withinFreeQuota = $user->players()->count() < $this->freePlayerQuota();
+        if (! $withinFreeQuota && $user->score < (int) option('score_per_player')) {
             return json(trans('user.player.add.lack-score'), 7);
         }
 
@@ -112,8 +123,10 @@ class PlayerController extends Controller
         $player->tid_cape = 0;
         $player->save();
 
-        $user->score -= (int) option('score_per_player');
-        $user->save();
+        if (! $withinFreeQuota) {
+            $user->score -= (int) option('score_per_player');
+            $user->save();
+        }
 
         $dispatcher->dispatch('player.added', [$player, $user]);
         event(new PlayerWasAdded($player));
@@ -129,6 +142,7 @@ class PlayerController extends Controller
         /** @var User */
         $user = auth()->user();
         $playerName = $player->name;
+        $playerCount = $user->players()->count();
 
         $dispatcher->dispatch('player.delete.attempt', [$player, $user]);
 
@@ -142,7 +156,8 @@ class PlayerController extends Controller
 
         $player->delete();
 
-        if (option('return_score')) {
+        // 免费额度内的角色从未消耗过积分，删除时不返还，以免刷积分。
+        if (option('return_score') && $playerCount > $this->freePlayerQuota()) {
             $user->score += (int) option('score_per_player');
             $user->save();
         }

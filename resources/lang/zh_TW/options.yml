@@ -49,6 +49,9 @@ rate:
   score_per_player:
     title: 角色
     addon: 積分 = 1 個角色
+  free_player_quota:
+    title: 免費角色額度
+    addon: 個角色（積分不足也可創建）
   user_initial_score: 用戶初始積分
 report:
   title: 舉報材質

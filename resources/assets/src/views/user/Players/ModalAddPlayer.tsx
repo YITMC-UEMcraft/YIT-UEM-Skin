@@ -11,6 +11,7 @@ type Extra = {
   cost: number
   rule: string
   length: string
+  free_quota: number
 }
 
 interface Props {
@@ -47,7 +48,7 @@ const ModalAddPlayer: React.FC<Props> = (props) => {
     props.onClose()
   }
 
-  const { score, cost, rule, length } = blessing.extra as Extra
+  const { score, cost, rule, length, free_quota } = blessing.extra as Extra
   const isScoreEnough = score >= cost
 
   return (
@@ -75,15 +76,24 @@ const ModalAddPlayer: React.FC<Props> = (props) => {
           <li>{length}</li>
         </ul>
       </div>
-      <div
-        className={`alert alert-${isScoreEnough ? 'success' : 'danger'}`}
-        role="alert"
-      >
-        <i className={`icon fas fa-${isScoreEnough ? 'check' : 'times'}`}></i>
-        <span className="ml-1">
-          {t('user.cur-score')} {score}
-        </span>
-      </div>
+      {free_quota > 0 ? (
+        <div className="alert alert-success" role="alert">
+          <i className="icon fas fa-gift"></i>
+          <span className="ml-1">
+            {t('user.player.free-quota', { n: free_quota })}
+          </span>
+        </div>
+      ) : (
+        <div
+          className={`alert alert-${isScoreEnough ? 'success' : 'danger'}`}
+          role="alert"
+        >
+          <i className={`icon fas fa-${isScoreEnough ? 'check' : 'times'}`}></i>
+          <span className="ml-1">
+            {t('user.cur-score')} {score}
+          </span>
+        </div>
+      )}
     </Modal>
   )
 }

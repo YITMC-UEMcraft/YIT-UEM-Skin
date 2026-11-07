@@ -49,6 +49,9 @@ rate:
   score_per_player:
     title: 角色
     addon: 积分 = 一个角色
+  free_player_quota:
+    title: 免费角色额度
+    addon: 个角色（积分不足也可创建）
   user_initial_score: 新用户默认积分
 report:
   title: 材质举报
